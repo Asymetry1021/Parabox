@@ -1,0 +1,161 @@
+block types: pNumber=patric, +=push, #=wall
+
+goals
+new idea: instead of making them a block like default empty spaces, make them a property of boxes themselves. 
+Have them only display when printing if the block on them is the default empty block
+
+Box Encoding:
+Boxes will be given names from imports, and automatically generates names if not given for exports
+ok for future notice
+encoding box names can prob store more meaning
+like LCLname or LRFname or LINFname can be used to denote clones, reflections, and infinity variants of box Lname
+
+added root boxes, rootrow, and rootcol to give each box context of where it is in the parent box
+place now automatically sets those values when placing a box inside another box
+
+with boxdict, I don't think root boxes are a needed concept anymore. 
+With stuff like swap and clone, having a root box is no longer a useful concept.
+Need to rework game, import/export, and everything that involved root boxes to make use of boxdict instead
+ok for printing I dont really want the boxes to be in random order. I guess we could do it in the order of the boxdict? Idk I want the 'main' box to always be first
+or perhaps thats a lost cause since in some levels the main boxes shift
+so we just go with the order of the boxdict(and if that doesnt look good, reverse order)
+
+pseudoboxes
+pseudoboxes are boxes that has no true interior
+like clones, infinities, and so on.
+later on these pseudoboxes can have independent properties such as possession, but they dont have their own meaningful interiors
+for these, I think I will give them names that points them to their source boxes
+Iname for infinity of name, C name for clone of name, Rname for reflection of name, and so on
+So like, IIILA or CRLB and stuff. There is going to be things in the import that decodes these names and implements them
+
+give exit and push an infinite loop clause
+exit first
+exit now takes into account all the box the block has attempted exit from in this turn, and stores them in a list by name.
+if the next box it is attempt to exit from is in that list, then it is determined to be an infinite exit
+an infinity box is generated with its container void, and the block exits into the void
+
+Ok uhh thats not good
+I realized that a pushlist needs to be present in enter and exit as well in order to handle cycles
+otherwise the pushlist gets reset and we still get infinite pushing
+hmmm
+
+ok stuff for tommorw
+every time push is invoked, the pushlist is checked
+its newest element is compared to every element in the pushlist before it, and if any of them are the new element, then we have a cycle
+the list from the first occurence to right before the newest element is cut into its own list
+every block in that list gets the next block's location and the last gets the first to cycle
+
+Colors
+Boxes have their color stored in the dims section of the export string
+format is length, width, R, G, B
+if no color is specified, default to (50,150,250)
+patrick color and pushable color are not box dependent, they are game-dependent
+will be stored at the beginning of the game export string as its own section
+if the first secion is not a specification, it is presumed to be default specs
+specs in format SPEC:Patrick Colors:Pushable Colors:additional future specs (i.e the appendix gamerules) 
+
+Basic Level Select
+Need to learn how to make a text input
+
+Compression rework
+current compression is pretty bad ngl
+names of boxes shouldnt be used to store info as it gets long and clunky. Store box infos elsewhere
+Game code structure: Specs|Box1|Box2|Box3...
+Specs: SPEC:PatColR,PatColG,PatColB:PushColR,PushColG,PushColB:additional specs...
+Box encoding: BoxSpecs:LookupData:Table:Goals
+BoxSpecs: BoxName:Rows,Cols,R,G,B,Special features(Void levels, flips, possessible, etc)
+maybe possession should be tile tier as walls and pushables can be possessible too?
+or just have #p and +p denote possessible walls and pushables, as possessible boxes can have possessible in boxspecs
+pseudoboxes like clones and infinities are defined with solely BoxSpec and nothing else as they have no interior
+LookupData: numbers with box names attached to them like 0=#,1=+,2=p0,3=VILA,4=CLB,etcetcetc
+Table: RLE compressed table data using the lookup data
+like 1*4,2*1,3*1,4*10,etcetcetc
+Goals: B1-5,P2-3,etcetcetc
+wait since we are using 4th degree denoters anyways why not just merge them all into , so like |,:,;,, instead of making 3 extra denoters
+#0,#;1,+;2,p0;3,ILB;4,CLB|1*4;2*1;3*1;4*10|B,1,5;P,2,3
+yeah that seems better
+outside of "simple" boxes which do need names to distingulish them, I think the display name for dependent boxes should be separate from their internal code name when on display
+but interally they will still have their full names for coding purposes
+like box CLB will still be called CLB internally, but when displayed it will just be called B
+why do we need boxdict again? Isnt a list of boxes enough?
+ok we might just switch to a list since in a list you can go in reverse or something
+nvm boxdict is useful for lookups in cycle and infinity detection
+
+Clones
+Ok I thought it was just enterin that needs a minor tweak to make it work
+but I discovered something troubling
+there can be multiple clones of a box in a level
+but each clone object has to have its own location state so they must be distinct
+but they have the same attributes otherwise
+uhoh
+ok new plan
+clones are only treated the same in levelcodes
+as string doesnt store internal location
+but import installs each clone appearance as a unique object, and export removes that uniqueness
+ok current plan is that they are still effectively the same object
+just deepcopies of the original generated clone
+same name, same extension, etc
+it is just that gdict will mark them different. gdict names doesnt really matter theorhetically
+though I might be proven wrong.
+oh well we will see what's wrong when we actually make clone stuff
+
+Ok going back on the color thing
+I think using chatgpt to identify colors is honestly a bit dumb
+so Im gonna go back and record every color verbatim
+and sort them into chapter sections
+maybe I do a search function as well?
+
+To edit the levels I need a way to go back into boxspecs. Maybe I can just click the level name and boom boxspec?
+Also for some text entries I might need to scale them to length to ensure they don't go outside the box
+
+
+phase 1: sokoban(emulating all of intro without nested boxes)
+define the print function for a given box, the movement of a player, and general mechanics of pushing
+   subphase 1.1: create compact encoding for boxes and games, also ability to import/export levels for ease of testing 
+   subphase 1.2: create block and player goals, detect if win condition is met
+   subphase 1.3: helper functions to create levels more easily
+   subphase 1.4: Undo/Redo and reset
+Implementation Successful!
+game emulated up to Intro 4
+
+phase 2: Enter 
+define boxes inside boxes, how to enter and exit boxes, and so on. Emulates all intro and enter level up to the first recursion level
+   subphase 2.1: Implement nested boxes into gamestate, print, and string compression
+   subphase 2.2: Implement entering and exiting boxes, push inside and outside boxes ok perfect it works
+   subphase 2.3: revamp the box system
+implementation Successful!
+game emulated up to Empty 12
+
+phase 3: empty
+the first level with infinity paradoxes and cyclic exits are possible.
+need to implement cycle detection and proper infinity box handling
+   subphase 3.1: implement pseudoboxes, boxes that has no interior except those of another box
+   subphase 3.2: implement cycle detection to prevent infinite loops
+   subphase 3.3: implement a special 'void' box that blocks entering any boxes within it
+   subphase 3.4: implement an emergency protocol that generates an infinity box in a void box to solve the paradox
+   subphase 3.5: implement push cycles
+implementation Successful!
+game emulated up to Eat 1
+
+phase 4: Eat
+define pushing boxes onto other boxes to "eat" them
+bugs detected
+cycles are valid actions despite nothing happening outside the cycle, so no other things like eats or enters should occur
+implementation Successful!
+game emulated up to Clone 1
+
+phase 5: UI upgrade
+add ability to get colors for boxes
+add ability to change colors of patricks and such
+(perhaps patrick and block palettes are game-dependent, while box colors, walls, floors, and goals are box-dependent)
+option for wall texturing to distingulish borders from boxes of the same color
+level select? world hub?
+better compression algorithm maybe? RLE?
+
+complete for now, will wait until all levels implemented before going to clone
+
+phase 6: Level editor
+mainly just to make these levels easier to make cause typing this shit out by commands is a pain
+need to figure out how to do number prompts
+ok plan
+always split between top and bottom. Top for display and data slots and stuff, bottom for palletes be it block or color
