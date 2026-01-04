@@ -6,6 +6,49 @@ import json
 
 with open("levels.json", "r", encoding="utf-8") as f:
     Levels = json.load(f)
+
+standardPalette={
+    #grays
+    'IntroGry':(225,225,225),
+    'EnterGry':(150,180,220),
+    'EmptyGry':(200,190,190),
+    'CentGry':(130,130,160),
+    #blues
+    'IntroBlu':(50,150,250),
+    'EatBlu':(100,130,230),
+    'RefBlu':(30,140,170),
+    #yellows
+    'IntroYel':(250,190,60),
+    'EnterYel':(210,250,50),
+    'EatYel':(250,220,130),
+    'RefYel':(220,190,60),
+    'ClnYel':(220,210,0),
+    #pinks
+    'IntroPat':(200,10,120),
+    'EnterPat':(200,60,120), 
+    'EatPat':(210,110,200),
+    'RefPnk':(250,50,100),
+    #greens
+    'EnterGrn':(50,250,150),
+    'EnterLim':(90,250,50),
+    'EmptyGrn':(180,210,60),
+    'EatGrn':(120,240,120),
+    'CentGrn':(110, 160, 50),
+    'ClnGrn':(120,210,40),
+    #oranges
+    'EnterOrg':(230,140,70), 
+    'EmptyPat':(225,90,40),
+    'EatOrg':(250,180,130),
+    'RefPat':(180,50,60),
+    #purples
+    'RefPur':(140,100,250), 
+    'CentPat':(130,70,220),
+    }
+
+with open('standardPalette.json','w') as f:
+    json.dump(standardPalette,f,indent=4)
+
+
 class blocks:
     #the general class for any block of any nature
     tangible=False
@@ -851,43 +894,7 @@ def importBoxRLE(boxcode):
                 blockID,blockLeft=boardRLElist.pop(0)
     return box,orders
 
-standardPalette={
-    #grays
-    'IntroGry':(225,225,225),
-    'EnterGry':(150,180,220),
-    'EmptyGry':(200,190,190),
-    'CentGry':(130,130,160),
-    #blues
-    'IntroBlu':(50,150,250),
-    'EatBlu':(100,130,230),
-    'RefBlu':(30,140,170),
-    #yellows
-    'IntroYel':(250,190,60),
-    'EnterYel':(210,250,50),
-    'EatYel':(250,220,130),
-    'RefYel':(220,190,60),
-    'ClnYel':(220,210,0),
-    #pinks
-    'IntroPat':(200,10,120),
-    'EnterPat':(200,60,120), 
-    'EatPat':(210,110,200),
-    'RefPnk':(250,50,100),
-    #greens
-    'EnterGrn':(50,250,150),
-    'EnterLim':(90,250,50),
-    'EmptyGrn':(180,210,60),
-    'EatGrn':(120,240,120),
-    'CentGrn':(110, 160, 50),
-    'ClnGrn':(120,210,40),
-    #oranges
-    'EnterOrg':(230,140,70), 
-    'EmptyPat':(225,90,40),
-    'EatOrg':(250,180,130),
-    'RefPat':(180,50,60),
-    #purples
-    'RefPur':(140,100,250), 
-    'CentPat':(130,70,220),
-    }
+
 
 def enterIn(block,box,direction,inlist,pushlist,game):
     #block is trying to enter a box in direction
@@ -1175,7 +1182,11 @@ Intro=[['LR','LA'],['IntroGry','IntroBlu']]
 #ok plan
 #always split between top and bottom. Top for display and data slots and stuff, bottom for palletes be it block or color
 
-
+#Ok going back on the color thing
+#I think using chatgpt to identify colors is honestly a bit dumb
+#so Im gonna go back and record every color verbatim
+#and sort them into chapter sections
+#maybe I do a search function as well?
 
 
 #Test Functions

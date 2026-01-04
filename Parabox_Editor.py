@@ -102,7 +102,7 @@ def draw_StartingMenu(screen,selectionTarget,existingLevel:str,textEntry:str,Tex
     pygame.draw.rect(screen,(150,150,150),(700,600,200,100))
     draw_text(screen,"Existing Level",800,725,30,(255,255,255))
     if TextEntryMode:
-        draw_text(screen,textEntry,800,650,30,(0,0,0))
+        draw_text(screen,textEntry,800,650,min(30,400//(len(textEntry)+1)),(0,0,0))
         if textEntry in Levels:
             pygame.draw.line(screen,(0,255,0),(920,650),(930,665),10)
             pygame.draw.line(screen,(0,255,0),(930,665),(950,635),10)
@@ -110,7 +110,7 @@ def draw_StartingMenu(screen,selectionTarget,existingLevel:str,textEntry:str,Tex
             pygame.draw.line(screen,(255,0,0),(920,635),(950,665),10)
             pygame.draw.line(screen,(255,0,0),(950,635),(920,665),10)
     else:
-        draw_text(screen,existingLevel,800,650,30,(0,0,0))
+        draw_text(screen,existingLevel,800,650,min(30,400//(len(existingLevel)+1)),(0,0,0))
     return
 
 def whereStartingMenuClicked(mouseX:int,mouseY:int):
@@ -203,7 +203,7 @@ def draw_GameSpecs(screen,g:game,highlight:str,TextEntry:str,TextEntryMode:bool)
     SpecXend=900
     SpecYend=350
     boundsize=200
-    boxsize=200*3/4
+    boxsize=200*3//4
     patCol=g.patCol
     pushCol=g.pushCol
     if g.patCol is None:
@@ -223,9 +223,9 @@ def draw_GameSpecs(screen,g:game,highlight:str,TextEntry:str,TextEntryMode:bool)
     draw_text(screen,"Pushable",SpecXstart+boundsize+boxsize/2,SpecYstart+boxsize+30,40,(255,255,255))
     draw_text(screen,"Name",SpecXstart+boundsize*2+boxsize/2,SpecYstart+boxsize+30,40,(255,255,255))
     if not TextEntryMode and not g.Name is None:
-        draw_text(screen,g.Name,SpecXstart+boundsize*2+boxsize/2,SpecYstart+boxsize/2,40,(0,0,0))
+        draw_text(screen,g.Name,SpecXstart+boundsize*2+boxsize/2,SpecYstart+boxsize/2,min(40,boxsize*2//(len(g.Name)+1)),(0,0,0))
     if TextEntryMode and highlight=="Name":
-        draw_text(screen,TextEntry,SpecXstart+boundsize*2+boxsize/2,SpecYstart+boxsize/2,40,(0,0,0))
+        draw_text(screen,TextEntry,SpecXstart+boundsize*2+boxsize/2,SpecYstart+boxsize/2,min(40,boxsize*2//(len(TextEntry)+1)),(0,0,0))
     pygame.draw.rect(screen,(150,150,150),(0,495,1200,10))
     pygame.draw.rect(screen,(120,240,120),(1100,0,100,50))
     pygame.draw.rect(screen,(0,0,0),(1145,10,10,30))
@@ -396,7 +396,7 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:str,boxSpecia
     SpecXend=900
     SpecYend=350
     boundsize=200
-    boxsize=200*3/4
+    boxsize=200*3//4
     descList=["Name","Row","Column","Color","Special"]
     if not boxSpecial=="":
         descList.append("Extension")
@@ -410,7 +410,7 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:str,boxSpecia
         pygame.draw.rect(screen,(150,150,150),(SpecXstart+boundsize*col,SpecYstart+boundsize*row,boxsize,boxsize))
         draw_text(screen,descList[i],SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize+20,30,(255,255,255))
         if i==0:
-            draw_text(screen,boxName,SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,40,(0,0,0))
+            draw_text(screen,boxName,SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,min(40,boxsize*2//(len(boxName)+1)),(0,0,0))
             if boxName in g.boxdict:
                 x = SpecXstart + boundsize*col
                 y = SpecYstart + boundsize*row
@@ -420,7 +420,7 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:str,boxSpecia
         elif i==1:
             if boxRow is None:
                 boxRow=""
-            draw_text(screen,str(boxRow),SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,40,(0,0,0))
+            draw_text(screen,str(boxRow),SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,min(40,boxsize*2//(len(str(boxRow))+1)),(0,0,0))
             if boxSpecial in ["Infinity","Clone"]:
                 x = SpecXstart + boundsize*col
                 y = SpecYstart + boundsize*row
@@ -430,7 +430,7 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:str,boxSpecia
         elif i==2:
             if boxCol is None:
                 boxCol=""
-            draw_text(screen,str(boxCol),SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,40,(0,0,0))
+            draw_text(screen,str(boxCol),SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,min(40,boxsize*2//(len(str(boxCol))+1)),(0,0,0))
             if boxSpecial in ["Infinity","Clone"]:
                 x = SpecXstart + boundsize*col
                 y = SpecYstart + boundsize*row
@@ -449,9 +449,9 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:str,boxSpecia
                 pygame.draw.line(screen,(255,0,0),(x,y),(x+size,y+size),10)
                 pygame.draw.line(screen,(255,0,0),(x+size,y),(x,y+size),10)
         elif i==4:
-            draw_text(screen,boxSpecial,SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,40,(0,0,0))
+            draw_text(screen,boxSpecial,SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,min(40,boxsize*2//(len(boxSpecial)+1)),(0,0,0))
         if descList[i]==SelectionTarget and textEntrymode:
-            draw_text(screen,textEntry,SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,40,(0,0,0))
+            draw_text(screen,textEntry,SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,min(40,boxsize*2//(len(textEntry)+1)),(0,0,0))
         elif i==5 and boxExtension is not None:
             draw_boxes(screen,SpecXstart+boundsize*col,SpecYstart+boundsize*row,boxsize,g.boxdict[boxExtension].color,boxExtension)
     pygame.draw.rect(screen,(150,150,150),(0,495,1200,10))
@@ -680,7 +680,7 @@ def drawPalette(screen,paletteDict:dict,page:int,boxColor=None,g:game=None):
         item=paletteDict[itemName]
         if isinstance(item,tuple):
             pygame.draw.rect(screen,item,(rectx,recty,80,80))
-            draw_text(screen,itemName,rectx+40,recty+90,20,(255,255,255))
+            draw_text(screen,itemName,rectx+40,recty+90,min(20,boxsize*2//(len(itemName)+1)),(255,255,255))
         elif itemName=="BGoal":
             draw_bgoals(screen,rectx,recty,80,boxColor)
             draw_text(screen,"BGoal",rectx+40,recty+90,20,(0,0,0))
@@ -702,13 +702,13 @@ def drawPalette(screen,paletteDict:dict,page:int,boxColor=None,g:game=None):
            
         elif isinstance(item,boxes):
             draw_boxes(screen,rectx,recty,80,item.color,item.name.removeprefix('L'))
-            draw_text(screen,item.name.removeprefix('L'),rectx+40,recty+90,20,(0,0,0))
+            draw_text(screen,item.name.removeprefix('L'),rectx+40,recty+90,min(20,boxsize*2//(len(item.name))),(0,0,0))
         elif isinstance(item,infinity):
             draw_boxes(screen,rectx,recty,80,tuple(min(255,int(0.75*c)) for c in item.extension.color),"INF-"+item.extension.name[1:])
-            draw_text(screen,"INF-"+item.extension.name.removeprefix('L'),rectx+40,recty+90,20,(0,0,0))
+            draw_text(screen,"INF-"+item.extension.name.removeprefix('L'),rectx+40,recty+90,min(20,boxsize*2//(len("INF-"+item.extension.name)+1)),(0,0,0))
         elif isinstance(item,clone):
             draw_boxes(screen,rectx,recty,80,tuple(min(255,int(1.25*c)) for c in item.extension.color),item.extension.name[1:])
-            draw_text(screen,"CLN-"+item.extension.name.removeprefix('L'),rectx+40,recty+90,20,(0,0,0)) 
+            draw_text(screen,"CLN-"+item.extension.name.removeprefix('L'),rectx+40,recty+90,min(20,boxsize*2//(len("CLN-"+item.extension.name))),(0,0,0)) 
         else:
             pygame.draw.rect(screen,(100,100,100),(rectx,recty,80,80))
        

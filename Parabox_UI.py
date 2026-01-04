@@ -116,7 +116,7 @@ def draw_patrick(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,pa
                 
 def draw_boxes(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,color:tuple[int,int,int],name:str):
     pygame.draw.rect(screen,color,(math.ceil(tileX),math.ceil(tileY),math.ceil(cellsize),math.ceil(cellsize)))
-    draw_text(screen,name,math.ceil(tileX+cellsize/2),math.ceil(tileY+cellsize/2),math.ceil(cellsize/2),(0,0,0))
+    draw_text(screen,name,math.ceil(tileX+cellsize/2),math.ceil(tileY+cellsize/2),math.ceil(min(cellsize/2,cellsize*1.5/len(name)+1)),(0,0,0))
 
 
 
