@@ -107,6 +107,18 @@ Finally, push your changes to GitHub:
 git push origin main
 ```
 
+**Note:** The default branch might be `main` or `master` depending on your repository settings. Check your default branch with:
+
+```bash
+git branch
+```
+
+The branch with an asterisk (*) is your current branch. To see the default remote branch:
+
+```bash
+git remote show origin
+```
+
 If you're working on a different branch:
 
 ```bash
@@ -151,7 +163,7 @@ git push origin main
 **Solution:** Make sure you're in the correct directory. Run `pwd` to check your current location, and `cd` to the repository directory.
 
 ### Issue: Large files causing errors
-**Solution:** GitHub has a file size limit (100MB). For large files, consider using [Git LFS (Large File Storage)](https://git-lfs.github.com/).
+**Solution:** GitHub has a file size limit of 100MB for individual files. Files over 50MB will trigger a warning. If you need to add large files (like game assets, videos, or datasets), consider using [Git LFS (Large File Storage)](https://git-lfs.github.com/). Note that repositories have a soft limit of 1GB and a hard limit of 5GB total size.
 
 ### Issue: Accidentally added sensitive files
 **Solution:** If you haven't pushed yet, you can unstage files with:
