@@ -25,8 +25,14 @@ def main():
         if state=="gameSpecs":
             state,data=gameSpecs(screen,clock,g)
         elif state=="boxSpecs":
-            state,data=boxSpecs(screen,clock,g)
-            box=g.boxdict[data]
+            if not data is None:
+                state,data=boxSpecs(screen,clock,g,data)
+            else:
+                state,data=boxSpecs(screen,clock,g)
+            if data in g.boxdict:
+                box=g.boxdict[data]
+            else:
+                box=None
             if isinstance(box,infinity) or isinstance(box,clone):
                 data=oldbox
             else:
@@ -93,7 +99,7 @@ def startingMenu(screen,clock):
 
 def draw_StartingMenu(screen,selectionTarget,existingLevel:str,textEntry:str,TextEntryMode:bool):
     draw_text(screen,"Patrick's",600,200,200,standardPalette['IntroPat'])
-    draw_text(screen,"Editor",600,350,200,standardPalette['IntroYel'])
+    draw_text(screen,"Editor",600,350,200,standardPalette['IntroPush'])
     draw_text(screen,"By Asymetry",600,450,50,(255,255,255))
     if selectionTarget=="ExistingLevel":
         pygame.draw.rect(screen,(255,255,255),(695,595,210,110),5)
@@ -123,11 +129,13 @@ def whereStartingMenuClicked(mouseX:int,mouseY:int):
 def gameSpecs(screen,clock,g):
     #the pygame loop for initializing a game's specs (patrick and wall colors, gamerules, etc)
     running=True
-    highlight=""
+    SelectionTarget=""
     tabs=['SPEC']+list(g.boxdict.keys())
     PalettePage=1
     TextEntryMode=False
     TextEntry=""
+    SearchTerm=""
+    SearchEntryMode=False
     while running:
         for event in pygame.event.get():
             if event.type==pygame.QUIT:
@@ -137,28 +145,39 @@ def gameSpecs(screen,clock,g):
                 if mouseY<=500:
                     where=whereGameSpecClicked(mouseX,mouseY)
                 else:
-                    where=whereClickedPalette(mouseX,mouseY,standardPalette,PalettePage)
+                    where=whereClickedPalette(mouseX,mouseY,{k:v for k,v in standardPalette.items() if TextEntry.lower() in k.lower()},PalettePage)
                 if where=="Name":
                     TextEntryMode=not TextEntryMode
                     TextEntry=""
-                    highlight="Name"
-                elif TextEntryMode and not where=="Name":
-                    TextEntryMode=False
-                    g.Name=TextEntry
+                    SelectionTarget="Name"
+                elif where=="Search" and SelectionTarget in ["Patrick","Pushable"]:
+                    SearchEntryMode=not SearchEntryMode
                     TextEntry=""
-                if where=="Patrick" and not highlight=="Patrick":
-                    highlight="Patrick"
-                elif where=="Patrick" and highlight=="Patrick":
-                    highlight=""
-                elif where=="Pushable" and not highlight=="Pushable":
-                    highlight="Pushable"
-                elif where=="Pushable" and highlight=="Pushable":
-                    highlight=""
+                elif TextEntryMode and not where =="Name":
+                    TextEntryMode=False
+                    if SelectionTarget=="Name":
+                        g.Name=TextEntry
+                    elif SelectionTarget=="Search":
+                        SearchTerm=TextEntry
+                    TextEntry=""
+                    SelectionTarget=""
+                elif SearchEntryMode and not where=="Search":
+                    SearchEntryMode=False
+                    SearchTerm=TextEntry
+                    TextEntry=""
+                if where=="Patrick" and not SelectionTarget=="Patrick":
+                    SelectionTarget="Patrick"
+                elif where=="Patrick" and SelectionTarget=="Patrick":
+                    SelectionTarget=""
+                elif where=="Pushable" and not SelectionTarget=="Pushable":
+                    SelectionTarget="Pushable"
+                elif where=="Pushable" and SelectionTarget=="Pushable":
+                    SelectionTarget=""
                 elif where=="NewBox" and g.patCol is not None and g.pushCol is not None:
                     return ["boxSpecs",None]
                 elif where=="Default":
                     g.patCol=standardPalette['IntroPat']
-                    g.pushCol=standardPalette['IntroYel']
+                    g.pushCol=standardPalette['IntroPush']
                 elif where=="Export" and g.patCol is not None and g.pushCol is not None and g.Name is not None:
                     exportString=g.exportGameRLE()
                     Levels[g.Name]=exportString
@@ -167,28 +186,32 @@ def gameSpecs(screen,clock,g):
                     with open("levels.json", "w", encoding="utf-8") as f:
                         json.dump(Levels, f, indent=4)
                     return ["startingMenu",None]
-                elif where in standardPalette.keys() and highlight=="Patrick":
+                elif where in standardPalette.keys() and SelectionTarget=="Patrick":
                     g.patCol=standardPalette[where]
-                elif where in standardPalette.keys() and highlight=="Pushable":
+                elif where in standardPalette.keys() and SelectionTarget=="Pushable":
                     g.pushCol=standardPalette[where]
             elif event.type==pygame.KEYDOWN:
                 if event.key==pygame.K_ESCAPE:
                     return ["quit",None]
                 if event.key==pygame.K_DOWN and len(tabs)>1:
                     return ["levelEditor",tabs[1]]
-                if event.key==pygame.K_LEFT and PalettePage>1 and not highlight=="":
+                if event.key==pygame.K_LEFT and PalettePage>1 and not SelectionTarget=="":
                     PalettePage-=1
-                if event.key==pygame.K_RIGHT and PalettePage*8<len(standardPalette) and not highlight=="":
+                if event.key==pygame.K_RIGHT and PalettePage*8<len(standardPalette) and not SelectionTarget=="":
                     PalettePage+=1
-                elif event.unicode and TextEntryMode:
+                elif event.unicode and (TextEntryMode or SearchEntryMode):
                     if event.key==pygame.K_BACKSPACE:
                         TextEntry=TextEntry[:-1]
                     else:
                         TextEntry+=event.unicode
+                    if SearchEntryMode:
+                        PalettePage=1
         screen.fill((10,30,60))
-        draw_GameSpecs(screen,g,highlight,TextEntry,TextEntryMode)
-        if highlight in ["Patrick","Pushable"]:
-            drawPalette(screen,standardPalette,PalettePage)
+        draw_GameSpecs(screen,g,SelectionTarget,TextEntry,TextEntryMode)
+        if SelectionTarget in ["Patrick","Pushable"] and SearchEntryMode:
+            drawPalette(screen,{k:v for k,v in standardPalette.items() if TextEntry.lower() in k.lower()},PalettePage,TextEntry,SearchEntryMode)
+        elif SelectionTarget in ["Patrick","Pushable"] and not SearchEntryMode:
+            drawPalette(screen,standardPalette,PalettePage,"",False)
         pygame.display.flip()
         clock.tick(60)   
         
@@ -258,19 +281,42 @@ def whereGameSpecClicked(mouseX:int,mouseY:int):
         return "Export"
     return ""
 
-def boxSpecs(screen,clock,g:game):
+def boxSpecs(screen,clock,g:game,boxName=""):
     #the pygame loop for initializing a box's specs (dimensions, colors, special properties, etc)
-    boxName=""
-    boxRow=None
-    boxCol=None
-    boxColor=None
-    boxSpecial=""
-    boxExtension=None
+    if boxName in g.boxdict:
+        box=g.boxdict[boxName]
+        boxRow=box.row
+        boxCol=box.col
+        boxColor=box.color
+        if isinstance(box,infinity):
+            boxSpecial="Infinity"
+            boxExtension=box.extension.name
+        elif isinstance(box,clone):
+            boxSpecial="Clone"
+            boxExtension=box.extension.name
+        elif isinstance(box,epsilon):
+            boxSpecial="Epsilon"
+            boxExtension=box.extesion.name
+        elif isinstance(box,voidbox):
+            boxSpecial="Void"
+            boxExtension=None
+        else:
+            boxSpecial=""
+            boxExtension=None
+    else:
+        boxName=""
+        boxRow=None
+        boxCol=None
+        boxColor=None
+        boxSpecial=""
+        boxExtension=None
     running=True
     TextEntryMode=False
+    SearchEntryMode=False
     TextEntry=""
     SelectionTarget=""
     PalettePage=1
+    SearchTerm=""
     while running:
         for event in pygame.event.get():
             if event.type==pygame.QUIT:
@@ -280,13 +326,17 @@ def boxSpecs(screen,clock,g:game):
                 if mouseY<500:
                     where=whereBoxSpecClicked(mouseX,mouseY,boxSpecial)
                 elif SelectionTarget=="Color":
-                    where=whereClickedPalette(mouseX,mouseY,standardPalette,PalettePage)
-                    if where in standardPalette.keys():
-                        boxColor=where
+                    where=whereClickedPalette(mouseX,mouseY,{k:v for k,v in standardPalette.items() if TextEntry.lower() in k.lower()},PalettePage)
+                    if where in standardPalette:
+                        boxColor=standardPalette[where]
+                    if SearchEntryMode:
+                        continue
                 elif SelectionTarget=="Extension" and not boxSpecial=="":
-                    where=whereClickedPalette(mouseX,mouseY,g.boxdict,PalettePage)
+                    where=whereClickedPalette(mouseX,mouseY,{k:v for k,v in g.boxdict.items() if TextEntry.lower() in k.lower()},PalettePage)
                     if where in g.boxdict:
                         boxExtension=where
+                    if SearchEntryMode:
+                        continue
                 if TextEntryMode:
                         if SelectionTarget=="Name":
                             boxName=TextEntry
@@ -300,7 +350,7 @@ def boxSpecs(screen,clock,g:game):
                                 boxCol=int(TextEntry)
                             except:
                                 boxCol=None
-                        elif SelectionTarget=="Special" and TextEntry in ["Infinity","Clone","Epsilon"]:
+                        elif SelectionTarget=="Special" and TextEntry in ["Infinity","Clone","Epsilon","Void"]:
                             boxSpecial=TextEntry
                 if where in ["Name","Row","Column","Special"]:
                     TextEntryMode=True
@@ -315,11 +365,20 @@ def boxSpecs(screen,clock,g:game):
                     elif where=="Special":
                         boxSpecial=""
                     continue
+                if where=="Search" and SelectionTarget in ["Color","Extension"]:
+                    SearchEntryMode=True
+                    TextEntryMode=False
+                    TextEntry=""
+                    continue
                 if TextEntryMode:
                     #turn it off if clicking elsewhere
                     TextEntryMode=False
                     TextEntry=""
                     SelectionTarget=""
+                if SearchEntryMode:
+                    #turn it off if clicking elsewhere
+                    SearchEntryMode=False
+                    TextEntry=""
                 if where=="Color" and SelectionTarget!="Color":
                     PalettePage=1
                     SelectionTarget="Color"
@@ -334,7 +393,7 @@ def boxSpecs(screen,clock,g:game):
                     boxName="LR"
                     boxRow=5
                     boxCol=5
-                    boxColor="IntroGry"
+                    boxColor=standardPalette["IntroGry"]
                     boxSpecial=""
                     boxExtension=None
                 if where=="CreateBox" and not boxName=="" and not boxName in g.boxdict:
@@ -344,7 +403,17 @@ def boxSpecs(screen,clock,g:game):
                         newBox=infinity(g.boxdict[boxExtension])
                     elif boxSpecial=="Clone" and not boxExtension is None:
                         newBox=clone(g.boxdict[boxExtension])
+                    elif boxSpecial=="Epsilon" and not boxExtension is None and not boxRow is None and not boxCol is None:
+                        newBox=epsilon(g.boxdict[boxExtension],boxRow,boxCol)
+                    elif boxSpecial=="Void":
+                        newBox=voidbox(7,7,boxName)
+                    else:
+                        continue
                     g.boxdict[boxName]=newBox
+                    return ["levelEditor",boxName]
+                elif where=="CreateBox" and boxName in g.boxdict:
+                    box=g.boxdict[boxName]
+                    box.color=boxColor
                     return ["levelEditor",boxName]
 
             elif event.type==pygame.KEYDOWN:
@@ -368,11 +437,13 @@ def boxSpecs(screen,clock,g:game):
                     TextEntryMode=False
                     TextEntry=""
                     SelectionTarget=""
-                elif event.unicode and TextEntryMode:
+                elif event.unicode and (TextEntryMode or SearchEntryMode):
                     if event.key==pygame.K_BACKSPACE:
                         TextEntry=TextEntry[:-1]
                     else:
                         TextEntry+=event.unicode
+                    if SearchEntryMode:
+                        PalettePage=1
                 elif event.key==pygame.K_LEFT and PalettePage>1 and SelectionTarget=="Color":
                     PalettePage-=1
                 elif event.key==pygame.K_RIGHT and PalettePage*8<len(standardPalette) and SelectionTarget=="Color":
@@ -381,15 +452,15 @@ def boxSpecs(screen,clock,g:game):
         screen.fill((10,30,60))
         drawBoxSpecs(screen,boxName,boxRow,boxCol,boxColor,boxSpecial,TextEntry,SelectionTarget,TextEntryMode,g,boxExtension)
         if SelectionTarget=="Color":
-            drawPalette(screen,standardPalette,PalettePage)
+            drawPalette(screen,{k:v for k,v in standardPalette.items() if TextEntry.lower() in k.lower()},PalettePage,TextEntry,SearchEntryMode)
         elif SelectionTarget=="Extension" and not boxSpecial=="":
-            drawPalette(screen,g.boxdict,PalettePage)
+            drawPalette(screen,{k:v for k,v in g.boxdict.items() if TextEntry.lower() in k.lower()},PalettePage,TextEntry,SearchEntryMode)
         pygame.display.flip()
         clock.tick(60)
 
     return
 
-def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:str,boxSpecial:str,textEntry,SelectionTarget:str,textEntrymode:bool,g:game,boxExtension:str=None):
+def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:tuple[int,int,int],boxSpecial:str,textEntry,SelectionTarget:str,textEntrymode:bool,g:game,boxExtension:str=None):
     #draws the box specs editor onto the screen
     SpecXstart=100
     SpecYstart=50
@@ -403,7 +474,7 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:str,boxSpecia
     for i in range(6):
         row=i//4
         col=i%4
-        if i==5 and boxSpecial=="":
+        if i==5 and boxSpecial in ["","Void"]:
             continue
         if descList[i]==SelectionTarget:
             pygame.draw.rect(screen,(255,255,255),(SpecXstart+boundsize*col-5,SpecYstart+boundsize*row-5,boxsize+10,boxsize+10))
@@ -421,7 +492,7 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:str,boxSpecia
             if boxRow is None:
                 boxRow=""
             draw_text(screen,str(boxRow),SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,min(40,boxsize*2//(len(str(boxRow))+1)),(0,0,0))
-            if boxSpecial in ["Infinity","Clone"]:
+            if boxSpecial in ["Infinity","Clone","Void"] or boxName in g.boxdict:
                 x = SpecXstart + boundsize*col
                 y = SpecYstart + boundsize*row
                 size = boxsize
@@ -431,7 +502,7 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:str,boxSpecia
             if boxCol is None:
                 boxCol=""
             draw_text(screen,str(boxCol),SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,min(40,boxsize*2//(len(str(boxCol))+1)),(0,0,0))
-            if boxSpecial in ["Infinity","Clone"]:
+            if boxSpecial in ["Infinity","Clone","Void"] or boxName in g.boxdict:
                 x = SpecXstart + boundsize*col
                 y = SpecYstart + boundsize*row
                 size = boxsize
@@ -441,8 +512,8 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:str,boxSpecia
             if boxColor is None:
                 pygame.draw.rect(screen,(150,150,150),(SpecXstart+boundsize*col,SpecYstart+boundsize*row,boxsize,boxsize))
             else:
-                pygame.draw.rect(screen,standardPalette[boxColor],(SpecXstart+boundsize*col,SpecYstart+boundsize*row,boxsize,boxsize))
-            if boxSpecial in ["Infinity","Clone"]:
+                pygame.draw.rect(screen,boxColor,(SpecXstart+boundsize*col,SpecYstart+boundsize*row,boxsize,boxsize))
+            if boxSpecial in ["Infinity","Clone","Void","Epsilon"]:
                 x = SpecXstart + boundsize*col
                 y = SpecYstart + boundsize*row
                 size = boxsize
@@ -450,10 +521,24 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:str,boxSpecia
                 pygame.draw.line(screen,(255,0,0),(x+size,y),(x,y+size),10)
         elif i==4:
             draw_text(screen,boxSpecial,SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,min(40,boxsize*2//(len(boxSpecial)+1)),(0,0,0))
+            if boxName in g.boxdict:
+                x = SpecXstart + boundsize*col
+                y = SpecYstart + boundsize*row
+                size = boxsize
+                pygame.draw.line(screen,(255,0,0),(x,y),(x+size,y+size),10)
+                pygame.draw.line(screen,(255,0,0),(x+size,y),(x,y+size),10)
         if descList[i]==SelectionTarget and textEntrymode:
             draw_text(screen,textEntry,SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,min(40,boxsize*2//(len(textEntry)+1)),(0,0,0))
         elif i==5 and boxExtension is not None:
-            draw_boxes(screen,SpecXstart+boundsize*col,SpecYstart+boundsize*row,boxsize,g.boxdict[boxExtension].color,boxExtension)
+            draw_boxes(screen,SpecXstart+boundsize*col,SpecYstart+boundsize*row,boxsize,g.boxdict[boxExtension].color,boxExtension[1:])
+            if boxName in g.boxdict:
+                x = SpecXstart + boundsize*col
+                y = SpecYstart + boundsize*row
+                size = boxsize
+                pygame.draw.line(screen,(255,0,0),(x,y),(x+size,y+size),10)
+                pygame.draw.line(screen,(255,0,0),(x+size,y),(x,y+size),10)
+
+        
     pygame.draw.rect(screen,(150,150,150),(0,495,1200,10))
     pygame.draw.rect(screen,(120,240,120),(1100,0,100,50))
     pygame.draw.line(screen,(0,0,0),(1135,25),(1145,35),10)
@@ -498,6 +583,12 @@ def levelEditor(screen,clock,g:game,boxname:str,blockPalette:dict):
     Selection1=[None,None]
     Selection2=[None,None]
     RectMode=False
+    if isinstance(box,voidbox):
+        color=(0,0,0)
+    elif isinstance(box,epsilon):
+        color=box.extension.color
+    else:
+        color=box.color
     while running:
         BoxTabs=filter(lambda x: isinstance(g.boxdict[x],boxes) or isinstance(g.boxdict[x],epsilon),list(g.boxdict))
         BoxDict={k:g.boxdict[k] for k in BoxTabs}
@@ -532,6 +623,8 @@ def levelEditor(screen,clock,g:game,boxname:str,blockPalette:dict):
                     Selection1=[None,None]
                     Selection2=[None,None]
                     box.fillborder(wall())
+                if where=="BoxSpecs":
+                    return ["boxSpecs",boxname]
                 if where in blockPalette.keys() and not Selection1==[None,None]:
                     #place block(s) logic
                     if not RectMode or Selection2==[None,None]:
@@ -588,7 +681,7 @@ def levelEditor(screen,clock,g:game,boxname:str,blockPalette:dict):
         screen.fill((10,30,60))
         drawLevelEditor(screen,g,box,Selection1,Selection2,RectMode)
         if not Selection1==[None,None]:
-            drawPalette(screen,blockPalette,PalettePage,boxColor=box.color,g=g)
+            drawPalette(screen,blockPalette,PalettePage,boxColor=color,g=g)
         pygame.display.flip()
         clock.tick(60)
     return
@@ -631,10 +724,12 @@ def drawLevelEditor(screen,g:game,box:Union[boxes,pseudoboxes],Selection1:list,S
     else:
         draw_text(screen,"R",50,25,30,(0,0,0))
     if isinstance(box,boxes):
-        pygame.draw.rect(screen,tuple(c*0.75 for c in box.color),(0,50,100,50))
+        pygame.draw.rect(screen,tuple(c*0.6 for c in box.color),(0,50,100,50))
+        draw_bgoals(screen,25,50,50,box.color)
     else:
-        pygame.draw.rect(screen,tuple(c*0.75 for c in box.extension.color),(0,50,100,50))
-    draw_bgoals(screen,25,50,50,box.color)
+        pygame.draw.rect(screen,tuple(c*0.6 for c in box.extension.color),(0,50,100,50))
+        draw_bgoals(screen,25,50,50,box.extension.color)
+    
     draw_text(screen,box.name,1150,250,30,(255,255,255))
     pygame.draw.polygon(screen,(150,150,150),[(1125,225),(1175,225),(1150,200)])
     pos=list(g.boxdict).index(box.name)
@@ -655,14 +750,19 @@ def whereLevelEditorClicked(mouseX:int,mouseY:int,g:game,box:Union[boxes,pseudob
         return "Add"
     if mouseX>=0 and mouseX<=100 and mouseY>=50 and mouseY<=100:
         return "Border"
+    if mouseX>=1100 and mouseX<=1200 and mouseY>=225 and mouseY<=275:
+        return "BoxSpecs"
     return
 
-def drawPalette(screen,paletteDict:dict,page:int,boxColor=None,g:game=None):
+def drawPalette(screen,paletteDict:dict,page:int,textEntry:str="",searchEntryMode:bool=False,boxColor=None,g:game=None):
     #draws from a palette of items onto the screen for selection
     #six items per page
     paletteList=list(paletteDict.keys())
     pageNeeded=math.ceil(len(paletteList)/8)
-    draw_text(screen,str(page)+"/"+str(pageNeeded),600,550,30,(255,255,255))
+    if pageNeeded==0:
+        draw_text(screen,"0/"+str(pageNeeded),600,550,30,(255,255,255))
+    else:
+        draw_text(screen,str(page)+"/"+str(pageNeeded),600,550,30,(255,255,255))
     pygame.draw.polygon(screen,(255,255,255),[(580,545),(570,550),(580,555)])
     pygame.draw.polygon(screen,(255,255,255),[(620,545),(630,550),(620,555)])
     for i in range(8):
@@ -701,17 +801,23 @@ def drawPalette(screen,paletteDict:dict,page:int,boxColor=None,g:game=None):
             draw_text(screen,"Patrick"+str(item.order),rectx+40,recty+90,20,(0,0,0))
            
         elif isinstance(item,boxes):
-            draw_boxes(screen,rectx,recty,80,item.color,item.name.removeprefix('L'))
+            draw_boxes(screen,rectx,recty,80,tuple(min(255,int(1.2*c)) for c in item.color),item.name.removeprefix('L'))
             draw_text(screen,item.name.removeprefix('L'),rectx+40,recty+90,min(20,boxsize*2//(len(item.name))),(0,0,0))
         elif isinstance(item,infinity):
             draw_boxes(screen,rectx,recty,80,tuple(min(255,int(0.75*c)) for c in item.extension.color),"INF-"+item.extension.name[1:])
             draw_text(screen,"INF-"+item.extension.name.removeprefix('L'),rectx+40,recty+90,min(20,boxsize*2//(len("INF-"+item.extension.name)+1)),(0,0,0))
         elif isinstance(item,clone):
-            draw_boxes(screen,rectx,recty,80,tuple(min(255,int(1.25*c)) for c in item.extension.color),item.extension.name[1:])
+            draw_boxes(screen,rectx,recty,80,tuple(min(255,int(1.8*c)) for c in item.extension.color),item.extension.name[1:])
             draw_text(screen,"CLN-"+item.extension.name.removeprefix('L'),rectx+40,recty+90,min(20,boxsize*2//(len("CLN-"+item.extension.name))),(0,0,0)) 
         else:
             pygame.draw.rect(screen,(100,100,100),(rectx,recty,80,80))
-       
+        
+    if searchEntryMode:
+        pygame.draw.rect(screen,(255,255,255),(895,520,210,60))
+        pygame.draw.rect(screen,(150,150,150),(900,525,200,50))  
+        draw_text(screen,textEntry,1000,550,30,(0,0,0))
+    else:
+        pygame.draw.rect(screen,(150,150,150),(900,525,200,50))       
     return
 
 def whereClickedPalette(mouseposX:int,mouseposY:int,paletteDict:dict,page:int):
@@ -728,6 +834,8 @@ def whereClickedPalette(mouseposX:int,mouseposY:int,paletteDict:dict,page:int):
                 return ""
             itemName=list(paletteDict.keys())[i+8*(page-1)]
             return itemName
+        if mouseposX>=900 and mouseposX<=1100 and mouseposY>=525 and mouseposY<=575:
+            return "Search"
     return
 
 if __name__ == "__main__":

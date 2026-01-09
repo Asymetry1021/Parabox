@@ -108,6 +108,13 @@ maybe I do a search function as well?
 To edit the levels I need a way to go back into boxspecs. Maybe I can just click the level name and boom boxspec?
 Also for some text entries I might need to scale them to length to ensure they don't go outside the box
 
+ok so turns out
+Parabox creators are very inconsistent
+like even rooms of the same color all have slightly different colors
+so I guess I will just go by feels again
+except this time I order by section and round to fifths
+and also there will be repeats to avoid having to backtrack between sections
+
 
 phase 1: sokoban(emulating all of intro without nested boxes)
 define the print function for a given box, the movement of a player, and general mechanics of pushing
@@ -159,3 +166,23 @@ mainly just to make these levels easier to make cause typing this shit out by co
 need to figure out how to do number prompts
 ok plan
 always split between top and bottom. Top for display and data slots and stuff, bottom for palletes be it block or color
+
+
+
+bug report:
+
+Clone 9 has same problem as eat 8. For some reason a eat cycle is pushing patrick back
+Clone 10 shows that clones can't eat other clones? Need to fix this. 10 and 12 are unwinnable as of now
+
+Clone9 bug fixed?? But need to revisit. This doesnt seem like a permanent fix
+Clone10 bug fixed, messed up multiclone importing
+New clone10 bug: the first time a clone eats a non-clone block it crushes it. Undos somehow fixes it. Level 12 still impossible
+What could possibly be causing this what the fuck
+Clone10 bug fixed, deepcopying clones causes their extension to get copied too which makes only one clone actually linked to the real block
+Set up a custom deepcopy for clones
+
+Clone12 is somewhat fixed but still fucked up
+For some reason if you try to push in the same direction as a block coming in, it eats the block, pushes you back, and then crashes
+Ingame intended outcome is that the eat attempt fails as you are blocking the way and a block cant push against a patrick
+
+ok Clone12 fixed as well. Put an exception for patricks blocking the way in push function

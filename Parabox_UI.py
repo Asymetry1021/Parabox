@@ -20,22 +20,25 @@ def draw_text(screen, text, x, y, size=20, color=(255,255,255), center=True):
     else:
         screen.blit(surf, (x, y))
 def drawBoard(screen,startX,startY,cellsize,box:boxes,g:game):
+    if isinstance(box,voidbox):
+        color=(0,0,0)
+    elif isinstance(box,epsilon):
+        color=box.extension.color
+    else:
+        color=box.color
     for i in range(0,box.col):
         for j in range(0,box.row):
             tile=box.board[j][i]
             tileX=startX+i*cellsize
             tileY=startY+j*cellsize
             if not tile.tangible:
-                if isinstance(box,voidbox):
-                    pygame.draw.rect(screen,(0,0,0),(math.ceil(tileX),math.ceil(tileY),math.ceil(cellsize),math.ceil(cellsize)))
-                    continue
-                draw_tile(screen,tileX,tileY,cellsize,box.color)
+                draw_tile(screen,tileX,tileY,cellsize,color)
                 if [j,i] in box.bgoals:
-                    draw_bgoals(screen,tileX,tileY,cellsize,box.color)
+                    draw_bgoals(screen,tileX,tileY,cellsize,color)
                 elif [j,i] in box.pgoals:
-                    draw_pgoals(screen,tileX,tileY,cellsize,box.color)
+                    draw_pgoals(screen,tileX,tileY,cellsize,color)
             elif isinstance(tile,wall):
-                draw_wall(screen,tileX,tileY,cellsize,box.color)
+                draw_wall(screen,tileX,tileY,cellsize,color)
             elif isinstance(tile,pushable):
                 draw_pushable(screen,tileX,tileY,cellsize,g.pushCol)
                 if [j,i] in box.bgoals:
@@ -46,7 +49,7 @@ def drawBoard(screen,startX,startY,cellsize,box:boxes,g:game):
                 if [j,i] in box.pgoals:
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
             elif isinstance(tile,boxes):
-                draw_boxes(screen,tileX,tileY,cellsize,tuple(min(255,int(1.05*c)) for c in tile.color),tile.name[1:])
+                draw_boxes(screen,tileX,tileY,cellsize,tuple(min(255,int(1.2*c)) for c in tile.color),tile.name[1:])
                 if [j,i] in box.bgoals:
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
                 if isinstance(tile.container,voidbox):
@@ -56,22 +59,29 @@ def drawBoard(screen,startX,startY,cellsize,box:boxes,g:game):
                 draw_aura(screen,tileX,tileY,cellsize,(250,250,130))
                 if [j,i] in box.bgoals:
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
-            if isinstance(tile,clone):
-                draw_boxes(screen,tileX,tileY,cellsize,tuple(min(255,int(1.25*c)) for c in tile.extension.color),tile.extension.name[1:])
+            elif isinstance(tile,clone):
+                draw_boxes(screen,tileX,tileY,cellsize,tuple(min(255,int(1.8*c)) for c in tile.extension.color),tile.extension.name[1:])
                 if [j,i] in box.bgoals:
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
+            elif isinstance(tile,epsilon):
+                draw_boxes(screen,tileX,tileY,cellsize,tuple(min(255,int(1.2*c)) for c in tile.extension.color),"Eps-"+tile.extension.name[1:])
+                if [j,i] in box.bgoals:
+                    draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
+                if isinstance(tile.container,voidbox):
+                    draw_aura(screen,tileX,tileY,cellsize,(250,250,130))
                     
             
                     
 def drawGame(screen,g:game):
-    numRow,numCol=optimalGrid(len(g.boxdict),screen.get_width()/screen.get_height())
+    filtered=list(filter(lambda b: not (isinstance(b,clone) or isinstance(b,infinity)),g.boxdict.values()))
+    numRow,numCol=optimalGrid(len(filtered),screen.get_width()/screen.get_height())
     shareX=screen.get_width()/numCol
     shareY=screen.get_height()/numRow
     biggestSquare=min(shareX,shareY)
-    for i in range(len(g.boxdict)):
+    for i in range(len(filtered)):
         row=i//numCol
         col=i%numCol
-        box=list(g.boxdict.values())[i]
+        box=filtered[i]
         if isinstance(box,clone) or isinstance(box,infinity):
             continue
         centerX,centerY=(shareX*col+shareX/2,shareY*row+shareY/2)
@@ -82,21 +92,24 @@ def drawGame(screen,g:game):
         if isinstance(box,voidbox):
             draw_text(screen,"VOID",math.ceil(cornerX+biggestSquare/8),math.ceil(cornerY+biggestSquare/16),math.ceil(biggestSquare/10),(255,255,255))
             continue
+        if isinstance(box,epsilon):
+            draw_text(screen,"Eps-"+box.extension.name[1:],math.ceil(cornerX+biggestSquare/16),math.ceil(cornerY+biggestSquare/16),math.ceil(biggestSquare/10),(255,255,255))
+            continue
         draw_text(screen,box.name[1:],math.ceil(cornerX+biggestSquare/16),math.ceil(cornerY+biggestSquare/16),math.ceil(biggestSquare/10),(255,255,255))
 #okay since it seems like I am gonna have to reuse drawing code for tiles
 #Im gonna separate these out into functions
 
 def draw_tile(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,boxcolor:tuple[int,int,int]):
-    pygame.draw.rect(screen,tuple(min(255,int(c*0.75)) for c in boxcolor),(math.ceil(tileX),math.ceil(tileY),math.ceil(cellsize),math.ceil(cellsize)))
+    pygame.draw.rect(screen,tuple(min(255,int(c*0.6)) for c in boxcolor),(math.ceil(tileX),math.ceil(tileY),math.ceil(cellsize),math.ceil(cellsize)))
 
 def draw_bgoals(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,boxcolor:tuple[int,int,int]):
-    pygame.draw.rect(screen,tuple(min(255,int(c*1.25)) for c in boxcolor),(math.ceil(tileX+cellsize/8),math.ceil(tileY+cellsize/8),math.ceil(cellsize*3/4),math.ceil(cellsize*3/4)))
-    pygame.draw.rect(screen,tuple(min(255,int(c*0.75)) for c in boxcolor),(math.ceil(tileX+cellsize/4),math.ceil(tileY+cellsize/4),math.ceil(cellsize/2),math.ceil(cellsize/2)))
+    pygame.draw.rect(screen,tuple(min(255,int(c*0.9)) for c in boxcolor),(math.ceil(tileX+cellsize/8),math.ceil(tileY+cellsize/8),math.ceil(cellsize*3/4),math.ceil(cellsize*3/4)))
+    pygame.draw.rect(screen,tuple(min(255,int(c*0.6)) for c in boxcolor),(math.ceil(tileX+cellsize/4),math.ceil(tileY+cellsize/4),math.ceil(cellsize/2),math.ceil(cellsize/2)))
 
 def draw_pgoals(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,boxcolor:tuple[int,int,int]):
-    pygame.draw.rect(screen,tuple(min(255,int(c*1.25)) for c in boxcolor),(math.ceil(tileX+cellsize/8),math.ceil(tileY+cellsize/8),math.ceil(cellsize*3/4),math.ceil(cellsize*3/4)))
-    pygame.draw.circle(screen,tuple(min(255,int(c*0.75)) for c in boxcolor),(math.ceil(tileX+cellsize*5/16),math.ceil(tileY+cellsize*5/16)),math.ceil(cellsize/12))
-    pygame.draw.circle(screen,tuple(min(255,int(c*0.75)) for c in boxcolor),(math.ceil(tileX+cellsize*11/16),math.ceil(tileY+cellsize*5/16)),math.ceil(cellsize/12))
+    pygame.draw.rect(screen,tuple(min(255,int(c*0.9)) for c in boxcolor),(math.ceil(tileX+cellsize/8),math.ceil(tileY+cellsize/8),math.ceil(cellsize*3/4),math.ceil(cellsize*3/4)))
+    pygame.draw.circle(screen,tuple(min(255,int(c*0.6)) for c in boxcolor),(math.ceil(tileX+cellsize*5/16),math.ceil(tileY+cellsize*5/16)),math.ceil(cellsize/12))
+    pygame.draw.circle(screen,tuple(min(255,int(c*0.6)) for c in boxcolor),(math.ceil(tileX+cellsize*11/16),math.ceil(tileY+cellsize*5/16)),math.ceil(cellsize/12))
 
 def draw_wall(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,boxcolor:tuple[int,int,int]):
     pygame.draw.rect(screen,boxcolor,(math.ceil(tileX),math.ceil(tileY),math.ceil(cellsize),math.ceil(cellsize)))
@@ -133,16 +146,15 @@ def optimalGrid(numboxes,aspectRatio):
     return rows,cols
 
 def LevelPartition(Levels):
-    Chapters=['Intro','Enter','Empty','Eat','Reference','Swap','Center']
+    Chapters=['Intro','Enter','Empty','Eat','Reference','Swap','Center','Clone','Transfer','Open','Flip','Cycle','Player','Posess','Wall','InfExit','InfEnter','MultiInf','Challenge','Priority','Extrusion','InnerPush','Test']
     #returns a dict of chapters with a list of levels ordered by number
     ChapterLevels={}
     for chapter in Chapters:
         ChapterLevels[chapter]=filter(lambda lvl: lvl.startswith(chapter), Levels.keys())
         ChapterLevels[chapter]=sorted(ChapterLevels[chapter],key=lambda x: int(x[len(chapter):]))
     return ChapterLevels
-def Chapterselect(screen,clock):
-    Chapters=['Intro','Enter','Empty','Eat','Reference','Swap','Center']
-    page=1
+def Chapterselect(screen,clock,page=1):
+    Chapters=['Intro','Enter','Empty','Eat','Reference','Swap','Center','Clone','Transfer','Open','Flip','Cycle','Player','Posess','Wall','InfExit','InfEnter','MultiInf','Challenge','Priority','Extrusion','InnerPush','Test']
     running=True
     while running:
         for event in pygame.event.get():
@@ -162,17 +174,16 @@ def Chapterselect(screen,clock):
                 #else continue
                 chapterClicked=WhereClicked(mouseX,mouseY,Chapters,page)
                 if chapterClicked is not None:
-                    return ['Level',chapterClicked]
+                    return ['Level',chapterClicked,page]
         #draw
         screen.fill((10, 30, 60))
         draw_level_select(screen,Chapters,"Chapter Select",page)
         pygame.display.flip()
         clock.tick(60)
 
-def Levelselect(screen,clock,chapter):   
+def Levelselect(screen,clock,chapter,page=1):   
     ChapterLevels=LevelPartition(Levels)[chapter]
     running=True
-    page=1
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -191,7 +202,7 @@ def Levelselect(screen,clock,chapter):
                 #else continue
                 LevelClicked=WhereClicked(mouseX,mouseY,ChapterLevels,page)
                 if LevelClicked is not None:
-                    return ['Game',importGameRLE(Levels[LevelClicked])]
+                    return ['Game',importGameRLE(Levels[LevelClicked]),page]
         #draw
         screen.fill((10, 30, 60))
         draw_level_select(screen,ChapterLevels,chapter,page)
@@ -252,15 +263,19 @@ def main():
     state='Chapter'
     data=[]
     levelSelected=None
+    chapterPage=1
+    levelPage=1
     while not state=='quit':
         if state=='Chapter':
-            Output=Chapterselect(screen,clock)
+            Output=Chapterselect(screen,clock,chapterPage)
             if Output[0]=='Level':
                 levelSelected=Output[1]
+                chapterPage=Output[2]
         if state=='Level':
-            Output=Levelselect(screen,clock,levelSelected)
+            Output=Levelselect(screen,clock,levelSelected,levelPage)
             if Output[0]=='Game':
                 gameString=Output[1]
+                levelPage=Output[2]
         if state=='Game':
             Output=RunGame(screen,clock,gameString)
         state=Output[0]
@@ -281,10 +296,12 @@ def RunGame(screen,clock,g,inEditor=False):
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                print(g.exportGameRLE())
                 return ['Level',None]
             elif event.type == pygame.KEYDOWN:
                 # ignore movement keys if game already won
                 if event.key == pygame.K_ESCAPE:
+                    print(g.exportGameRLE())
                     return ['Level',None]
                 if game_won:
                     # swallow movement keys after win

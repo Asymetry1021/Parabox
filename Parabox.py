@@ -8,41 +8,72 @@ with open("levels.json", "r", encoding="utf-8") as f:
     Levels = json.load(f)
 
 standardPalette={
-    #grays
-    'IntroGry':(225,225,225),
-    'EnterGry':(150,180,220),
-    'EmptyGry':(200,190,190),
-    'CentGry':(130,130,160),
-    #blues
-    'IntroBlu':(50,150,250),
-    'EatBlu':(100,130,230),
-    'RefBlu':(30,140,170),
-    #yellows
-    'IntroYel':(250,190,60),
-    'EnterYel':(210,250,50),
-    'EatYel':(250,220,130),
-    'RefYel':(220,190,60),
-    'ClnYel':(220,210,0),
-    #pinks
-    'IntroPat':(200,10,120),
-    'EnterPat':(200,60,120), 
-    'EatPat':(210,110,200),
-    'RefPnk':(250,50,100),
-    #greens
-    'EnterGrn':(50,250,150),
-    'EnterLim':(90,250,50),
-    'EmptyGrn':(180,210,60),
-    'EatGrn':(120,240,120),
-    'CentGrn':(110, 160, 50),
-    'ClnGrn':(120,210,40),
-    #oranges
-    'EnterOrg':(230,140,70), 
-    'EmptyPat':(225,90,40),
-    'EatOrg':(250,180,130),
-    'RefPat':(180,50,60),
-    #purples
-    'RefPur':(140,100,250), 
-    'CentPat':(130,70,220),
+    #Hub
+    "HubPat":(200,0,120),
+    "HubIntro":(55,140,255),
+    "HubEnter":(60,255,150),
+    "HubEmpty":(160,210,40),
+    "HubEat":(255,190,60),
+    "HubReference":(30,140,170),
+    "HubSwap":(90,240,190),
+    "HubCenter":(220,100,70),
+
+    #Intro
+    "IntroPush": (250,190,60),
+    "IntroPat": (200,10,120),
+    "IntroGry": (230,230,230),
+    "IntroBlu": (50,150,250),
+
+    #Enter
+    "EnterPush": (50,170,230),
+    "EnterPat": (200,60,120),
+    "EnterGry": (150,180,220),
+    "EnterGrn": (50,250,150),
+    "EnterOrg": (230,140,70),
+    "EnterLim": (90,250,50),
+    "EnterYel": (210,250,50),
+
+    #Empty
+    "EmptyPush": (180,210,60),
+    "EmptyPat": (230,90,40),
+    "EmptyGry": (200,190,190),
+    "EmptyOrg": (250,150,70),
+    "EmptyBlu": (100,150,210),
+
+    #Eat
+    "EatPush": (250,220,130),
+    "EatPat": (210,110,200),
+    "EatGld": (250,200,80),
+    "EatOrg": (250,180,130),
+    "EatBlu": (100,130,230),
+    "EatGrn": (120,240,120),
+
+    #Reference
+    "RefPush":(230,200,60),
+    "RefPat":(190,60,60),
+    "RefBlu":(50,150,190),
+    "RefGrn":(50,180,140),
+    "RefYel":(240,200,40),
+    "RefPur":(150,110,255),
+    "RefBlu2":(50,170,230),
+    "RefGrn2":(20,230,120),
+    "RefYel2":(255,220,60),
+    "RefPur2":(140,120,210),
+    "RefPnk":(255,50,110),
+
+    #Center
+    "CentPush":(210,90,60),
+    "CentPat":(120,60,210),
+    "CentGry":(130,120,150),
+    "CentGrn":(100,160,50),
+    "CentYel":(190,160,60),
+
+    #Clone
+    "ClonePush":(70,140,250),
+    "ClonePat":(190,40,80),
+    "CloneGry":(140,170,210),
+    "CloneGrn":(120,200,30),
+    "CloneYel":(200,190,0)
     }
 
 with open('standardPalette.json','w') as f:
@@ -111,21 +142,24 @@ class boxes(blocks):
             rep=[]
             for j in range(self.col):
                 space=self.board[i][j]
-                if type(space) is blocks:
+                if not space.tangible:
                     if [i,j] in self.bgoals:
                        rep.append('B')
                     elif [i,j] in self.pgoals:
                        rep.append('P')
                     else:
                        rep.append('_')
-                elif type(space) is boxes:
+                elif isinstance(space, boxes):
                     rep.append(space.name[1:])
                     children.append(space)
-                elif type(space) is wall:
+                elif isinstance(space, pseudoboxes):
+                    rep.append(space.extension.name[1:])
+                    children.append(space)
+                elif isinstance(space, wall):
                     rep.append('#')
-                elif type(space) is pushable:
+                elif isinstance(space, pushable):
                     rep.append('+')
-                elif type(space) is patrick:
+                elif isinstance(space, patrick):
                     rep.append('p')
             print(''.join(rep))
         return children
@@ -134,7 +168,7 @@ class boxes(blocks):
         #checks if all goals are met
         for goal in self.bgoals:
             row,col=goal
-            if type(self.board[row][col]) is not pushable and type(self.board[row][col]) is not boxes:
+            if not(isinstance(self.board[row][col],pushable) or isinstance(self.board[row][col],boxes) or isinstance(self.board[row][col],pseudoboxes)):
                 return False
         for goal in self.pgoals:
             row,col=goal
@@ -242,7 +276,7 @@ def exportBoardRLE(board):
                 BlockID=None
     #flush last streak
     if not any(equivalent(lookups,streakBlock) for lookups in LookupDict.values()):
-        [LookupIndex]=streakBlock
+        LookupDict[LookupIndex]=streakBlock
         if not streakBlock.tangible:
             Lookup+=str(LookupIndex)+',_;'
         elif type(streakBlock) is wall:
@@ -304,6 +338,9 @@ class pseudoboxes(blocks):
     def __init__(self,truebox:Union[boxes,pseudoboxes]):
         super().__init__()
         self.extension=truebox
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.name}) is in {self.container.name} at ({self.rootrow},{self.rootcol})"
     
     def exportPseudoRLE(self):
         #a new version of export box that uses RLE compression
@@ -312,6 +349,8 @@ class pseudoboxes(blocks):
             Specs+=";I,"+self.extension.name+","+str(self.tier)
         if isinstance(self,clone):
             Specs+=";C,"+self.extension.name
+        if isinstance(self,epsilon):
+            Specs+=";"+str(self.row)+","+str(self.col)+";E,"+self.extension.name+","
         #Specs complete for now
         #once flips and epsilons which have interiers are added, the board copy will be needed
         return Specs
@@ -339,14 +378,25 @@ class clone(pseudoboxes):
         super().__init__(truebox)
         if not truebox is None:
             self.name='C'+truebox.name
+    def __deepcopy__(self, memo):
+        # Create a new clone instance without deep copying the extension
+        new_clone = clone(None)
+        new_clone.name = self.name
+        new_clone.extension = self.extension  # Keep the same reference, don't copy
+        return new_clone
+
 
 class epsilon(pseudoboxes):
     #the paradox breaker for infinite enters
     def __init__(self,truebox:Union[boxes,pseudoboxes],row=5,col=5):
-        super().__init(truebox)
+        super().__init__(truebox)
         self.row=row
         self.col=col
         self.board=[[blocks() for j in range(col)] for i in range(row)]
+        if truebox is None:
+            self.name=""
+        else:
+            self.name='E'+truebox.name
         for i in range(0,row):
             for j in range(0,col):
                 self.board[i][j].container=self
@@ -408,6 +458,46 @@ class epsilon(pseudoboxes):
         if goalstr!="":
             exportstr+=':'+goalstr[:-1]
         return exportstr 
+    
+    def printbox(self):
+        #also doubles as a way to find all the children boxes
+        children=[]
+        for i in range(self.row):
+            rep=[]
+            for j in range(self.col):
+                space=self.board[i][j]
+                if not space.tangible:
+                    if [i,j] in self.bgoals:
+                       rep.append('B')
+                    elif [i,j] in self.pgoals:
+                       rep.append('P')
+                    else:
+                       rep.append('_')
+                elif isinstance(space, boxes):
+                    rep.append(space.name[1:])
+                    children.append(space)
+                elif isinstance(space, pseudoboxes):
+                    rep.append(space.extension.name[1:])
+                    children.append(space)
+                elif isinstance(space, wall):
+                    rep.append('#')
+                elif isinstance(space, pushable):
+                    rep.append('+')
+                elif isinstance(space, patrick):
+                    rep.append('p')
+            print(''.join(rep))
+        return children
+    def checkGoals(self):
+        #checks if all goals are met
+        for goal in self.bgoals:
+            row,col=goal
+            if not(isinstance(self.board[row][col],pushable) or isinstance(self.board[row][col],boxes) or isinstance(self.board[row][col],pseudoboxes)):
+                return False
+        for goal in self.pgoals:
+            row,col=goal
+            if type(self.board[row][col]) is not patrick:
+                return False
+        return True
 
 
 class game:
@@ -429,6 +519,7 @@ class game:
                         self.playerlist.append(block)
         self.playerlist.sort(key=lambda x: x.order)
         self.initial=""
+        self.lastmove=None
         if isinstance(patcol,str) and isinstance(pushcol,str):
             self.patCol=standardPalette[patcol]
             self.pushCol=standardPalette[pushcol]
@@ -451,6 +542,7 @@ class game:
         #moves every player block
         self.undochain.append(self.exportGameRLE())
         self.redochain=[]
+        self.lastmove=direction
         for player in self.playerlist:
             push(player.container,player.rootrow,player.rootcol,direction,[],self)
         self.checkWin()
@@ -458,6 +550,8 @@ class game:
     
     def checkWin(self):
         for boxes in self.boxdict.values():
+            if isinstance(boxes,infinity) or isinstance(boxes,clone):
+                continue
             if not boxes.checkGoals():
                 return False
         return True
@@ -522,20 +616,20 @@ class game:
                     #saves only the first(original) clone of each box
                     boxstring=currentbox.exportPseudoRLE()
                     cloneChecker.append(currentbox.extension.name)
-                if isinstance(currentbox,infinity):
+                if isinstance(currentbox,infinity) or isinstance(currentbox,epsilon):
                     boxstring=currentbox.exportPseudoRLE()
             else:
                 boxstring=currentbox.exportBoxRLE()
             gamecode+=boxstring+'|'
         return gamecode[:-1] #removes the last |
+    
+    
 
         
 
 
 #functions go here
 
-
-        
 
 def push(box,row,col,direction,pushlist,game):
         #cycle checker
@@ -553,6 +647,8 @@ def push(box,row,col,direction,pushlist,game):
         #if no cycle occurs, regular pushing continues
         #pushes/moves
         #maybe returns a 0 or 1 to determine if the push is successful and recursively pass the signal up?
+        if isinstance(box.board[row][col],patrick) and not direction==game.lastmove:
+            return 0 #just a case specifically to deal with Clone9 and co for now
         delx,dely=0,0
         if direction%2==0:
             dely=direction-1
@@ -588,20 +684,26 @@ def push(box,row,col,direction,pushlist,game):
                 return 1
             if success==2:
                 return 2 #cycle detected, stop further actions
-            if isinstance(nextblock,boxes):
+            pushlist.pop() #removes the last block from the pushlist as the push was unsuccessful
+            #now check for enter or eat
+            if isinstance(nextblock,boxes) or isinstance(nextblock,pseudoboxes):
                 #pushing/entering into a box
                 success=enterIn(box.board[row][col],nextblock,direction,[],pushlist,game) #enter and exit will also give 0,1 inputs
                 if success==1:
                     box.board[row][col]=blocks()
                     return 1
+                if success==2:
+                    return 2
                 
-            if isinstance(box.board[row][col],boxes):
+            if isinstance(box.board[row][col],boxes) or isinstance(box.board[row][col],pseudoboxes):
                 #eat
                 success=enterIn(box.board[row+dely][col+delx],box.board[row][col],(direction+2)%4,[],[],game)
                 if success==1:
                     box.place(row+dely,col+delx,box.board[row][col])
                     box.board[row][col]=blocks()
                     return 1
+                if success==2:
+                    return 2
                 else:
                     return 0
 
@@ -642,6 +744,177 @@ def equivalent(a,b):
     if (isinstance(a,boxes) or isinstance(a,pseudoboxes)) and (isinstance(b,boxes) or isinstance(b,pseudoboxes)) and a.name==b.name:
         return True
     return False
+
+def enterIn(block,box,direction,inlist,pushlist,game):
+    #block is trying to enter a box in direction
+    if isinstance(box,infinity):
+        return 0 #infinity boxes can not be entered
+    if isinstance(block.container,voidbox):
+        return 0 #blocks inside void boxes can not enter other boxes
+    if isinstance(box,clone):
+        box=box.extension #clones redirect to their true box for entering
+    entdict={2:[0,box.col//2],3:[box.row//2,0],0:[box.row-1,box.col//2],1:[box.row//2,box.col-1]}
+    if box.name in inlist:
+        #infinite enter detected
+        epsbox=epsilon(box)
+        epsbox.generateVoid()
+        game.boxdict[epsbox.container.name]=epsbox.container #the first repeated box generates an epsilon box in the void. To ensure stuff like A-B-C-C-C... loops at C
+        game.boxdict[epsbox.name]=epsbox
+        return enterIn(block,epsbox,direction,inlist,pushlist,game)   
+    entrow,entcol=entdict[direction]
+    targetblock=box.board[entrow][entcol]
+    if not targetblock.tangible:
+        box.place(entrow,entcol,block)
+        return 1
+    elif not targetblock.pushable:
+        return 0
+    else:
+        pushlist.append(targetblock)
+        success=push(box,entrow,entcol,direction,pushlist,game) #push the block infront the entrance in the direction
+        if success==1:
+            box.place(entrow,entcol,block)
+            return 1
+        elif success==2:
+            return 2 #cycle detected, stop further actions
+        elif isinstance(targetblock,boxes) or isinstance(targetblock,clone) or isinstance(targetblock,epsilon):
+            inlist.append(box.name)
+            return enterIn(block,targetblock,direction,inlist,pushlist,game) #enter and exit will also give 0,1 inputs in addition to entering the block
+        else:
+            return 0
+
+def exitOut(block,box,row,col,direction,outlist,pushlist,game):
+    #lets do this one first
+    #block is trying to exit a box(positioned at row, col in Box) in direction
+    #this attempts an exit out of container boxes until a space is found, then attempts to either move/push to that space
+    if box is None:
+        return 0 #no space exist outside the root box
+    deldict={0:[-1,0],1:[0,-1],2:[1,0],3:[0,1]}
+    dely,delx=deldict[direction]
+    if isinstance(block.container,voidbox):
+        return 0 #void boxes can not be exited from
+    if box.name in outlist:
+        #infinite exit detected
+        infbox=infinity(block.container)
+        infbox.generateVoid()
+        game.boxdict[infbox.container.name]=infbox.container #the first repeated box generates an infinity box in a void. To ensure stuff like A-B-C-C-C... loops at C
+        game.boxdict[infbox.name]=infbox
+        return exitOut(block,infbox.container,3,3,direction,outlist,pushlist,game)
+    targetrow,targetcol=row+dely,col+delx
+    if targetrow not in range(0,box.row) or targetcol not in range(0,box.col):
+        outlist.append(box.name)
+        success=exitOut(block,box.container,box.rootrow,box.rootcol,direction,outlist,pushlist,game)
+        if success==1:
+            return 1
+        else:
+            return 0
+    targetblock=box.board[targetrow][targetcol]
+    if not targetblock.tangible:
+        box.place(targetrow,targetcol,block)
+        return 1
+    elif not targetblock.pushable:
+        return 0
+    else:
+        pushlist.append(targetblock)
+        success=push(box,targetrow,targetcol,direction,pushlist,game) #orders the targetblock to attempt a move/push in the direction
+        if success==1:
+            box.place(targetrow,targetcol,block)
+            return 1
+        if success==2:
+            return 2 #cycle detected, stop further actions
+        if isinstance(targetblock,boxes) or isinstance(targetblock,clone) or isinstance(targetblock,epsilon):
+            #transfer case
+            success=Transfer(block,direction,targetblock,pushlist,game)
+            if success==1:
+                return 1
+            if success==2:
+                return 2
+            else:
+                return 0
+        if isinstance(block,boxes):
+            #exiting a box by eating the obstruction
+            success=enterIn(targetblock,box.container,(direction+2)%4,[],[],game)
+            if success==1:
+                block.container.place(block.rootrow,block.rootcol,blocks())
+                box.place(targetrow,targetcol,block)
+                return 1
+            if success==2:
+                return 2
+            else:
+                return 0
+        else:
+            return 0
+
+def Transfer(Block,direction,TargetBox,pushlist,game):
+    #placeholder for future box transfer function
+    Container=Block.container
+    if direction%2==0:
+        offset=(Block.rootcol+1/2)/Container.col
+    else:
+        offset=(Block.rootrow+1/2)/Container.row
+    while not Container is TargetBox.container:
+        if direction%2==0:
+            #N or S
+            offset=(Container.rootcol+offset)/Container.container.col
+        else:
+            offset=(Container.rootrow+offset)/Container.container.row
+        Container=Container.container
+    #block location obtained
+    targetBlock=None
+    targetOffset=0
+    targetScaling=1
+    inList=[]
+    while not targetBlock in inList:
+        if isinstance(TargetBox,clone):
+            TargetBox=TargetBox.extension
+        if direction%2==0:
+            destcolExact=(offset-targetOffset)*TargetBox.col/targetScaling
+            for col in range(TargetBox.row):
+                if col<destcolExact<=col+1:
+                    destcolDiscrete=col
+                    break
+        else:
+            destrowExact=offset*TargetBox.row
+            for row in range(TargetBox.row):
+                if row<=destrowExact<row+1:
+                    destrowDiscrete=row
+                    break
+        #the reason row and col discrete is slightly different
+        #is because the game treat even boxes weirdly such horizonal and vertical entries are inconsistent
+        if direction==0:
+            targetBlockR,targetBlockC=TargetBox.row-1,destcolDiscrete
+        elif direction==1:
+            targetBlockR,targetBlockC=destrowDiscrete,TargetBox.col-1
+        elif direction==2:
+            targetBlockR,targetBlockC=0,destcolDiscrete
+        elif direction==3:
+            targetBlockR,targetBlockC=destrowDiscrete,0
+        targetBlock=TargetBox.board[targetBlockR][targetBlockC]
+        if not targetBlock.tangible:
+            TargetBox.place(targetBlockR,targetBlockC,Block)
+            return 1
+        elif not targetBlock.pushable:
+            return 0
+        else:
+            pushlist.append(targetBlock)
+            success=push(TargetBox,targetBlockR,targetBlockC,direction,pushlist,game)
+            if success==1:
+                TargetBox.place(targetBlockR,targetBlockC,Block)
+                return 1
+            if success==2:
+                return 2
+            if isinstance(targetBlock,boxes) or isinstance(targetBlock,clone) or isinstance(targetBlock,epsilon):
+                inList.append(targetBlock)
+                TargetBox=targetBlock
+                if direction%2==0:
+                    targetScaling/=TargetBox.col
+                    targetOffset+=destcolDiscrete*targetScaling
+            else:
+                return 0
+    epsBox=epsilon(TargetBox,5,5)
+    epsBox.generateVoid()
+    game.boxdict[epsBox.container.name]=epsBox.container
+    game.boxdict[epsBox.name]=epsBox
+    return enterIn(Block,epsBox,direction,[],pushlist,game)
 
 def importGame(gamecode):
     #imports a game from a compact string format
@@ -772,14 +1045,16 @@ def importGameRLE(gamecode):
     cloneIDs={}
     for boxname in installdict:
         orders=installdict[boxname]
-        if isinstance(initializedboxes[boxname],infinity) or isinstance(initializedboxes[boxname],clone):
-            #psuedoboxes which have one singular order
+        if isinstance(initializedboxes[boxname],infinity) or isinstance(initializedboxes[boxname],clone) or isinstance(initializedboxes[boxname],epsilon):
+            #psuedoboxes which have an initial installation order
             initializedboxes[boxname].extension=initializedboxes[orders[0]]
     for boxname in installdict:
         orders=installdict[boxname]
         if isinstance(initializedboxes[boxname],infinity) or isinstance(initializedboxes[boxname],clone):
             continue
         for order in orders:
+            if isinstance(order,str):
+                continue #psuedobox installation already handled
             name,row,col=order
             if isinstance(initializedboxes[name],clone):
                 if name not in cloneIDs:
@@ -790,7 +1065,9 @@ def importGameRLE(gamecode):
                     newClone=copy.deepcopy(initializedboxes[name])
                     newCloneName=name+str(cloneIDs[name])
                     initializedboxes[newCloneName]=newClone
-            initializedboxes[boxname].place(row,col,initializedboxes[name])
+                    initializedboxes[boxname].place(row,col,initializedboxes[newCloneName])
+            else:
+                initializedboxes[boxname].place(row,col,initializedboxes[name])
     g=game(initializedboxes,patCol,pushCol)
     g.initial=gamecode
     return g
@@ -799,6 +1076,7 @@ def importBoxRLE(boxcode):
     #a new version of import box that uses the RLE method
     parts=boxcode.split(":")
     orders=[]
+    epsilonMode=False
     if len(parts)==1:
         specs=parts[0]
         lookupstr=""
@@ -825,12 +1103,22 @@ def importBoxRLE(boxcode):
             box.name='C'+desclist[1]
             order=desclist[1]
             return box,[order]
+        if desclist[0]=='E':
+            epsilonMode=True
+            break
         #the interiorless pseudoboxes just needs to have their extensions assiged when they are initialized
-    row,col=map(int,specslist[1].split(","))
-    r,g,b=map(int,specslist[2].split(","))
-    color=(r,g,b)
+    if not epsilonMode:
+        row,col=map(int,specslist[1].split(","))
+        r,g,b=map(int,specslist[2].split(","))
+        color=(r,g,b)
     if 'V' in specslist:
         box=voidbox(row,col,name)
+    elif epsilonMode:
+        row,col=map(int,specslist[1].split(","))
+        box=epsilon(None,row,col)
+        box.name='E'+desclist[1]
+        order=desclist[1]
+        orders.append(order)
     else:
         box=boxes(row,col,name)
         box.color=color
@@ -896,91 +1184,6 @@ def importBoxRLE(boxcode):
 
 
 
-def enterIn(block,box,direction,inlist,pushlist,game):
-    #block is trying to enter a box in direction
-    if isinstance(box,infinity):
-        return 0 #infinity boxes can not be entered
-    if isinstance(block.container,voidbox):
-        return 0 #blocks inside void boxes can not enter other boxes
-    if isinstance(box,clone):
-        box=box.extension #clones redirect to their true box for entering
-    entdict={2:[0,box.col//2],3:[box.row//2,0],0:[box.row-1,box.col//2],1:[box.row//2,box.col-1]}
-    if box.name in inlist:
-        #infinite enter detected
-        epsbox=epsilon(block.container)
-        epsbox.generateVoid()
-        game.boxdict[epsbox.container.name]=epsbox.container #the first repeated box generates an infinity box in a void. To ensure stuff like A-B-C-C-C... loops at C
-        game.boxdict[epsbox.name]=epsbox
-        return enterIn(block,epsbox,direction,inlist,pushlist,game)   
-    entrow,entcol=entdict[direction]
-    targetblock=box.board[entrow][entcol]
-    if not targetblock.tangible:
-        box.place(entrow,entcol,block)
-        return 1
-    elif not targetblock.pushable:
-        return 0
-    else:
-        pushlist.append(targetblock)
-        success=push(box,entrow,entcol,direction,pushlist,game) #push the block infront the entrance in the direction
-        if success==1:
-            box.place(entrow,entcol,block)
-            return 1
-        elif isinstance(targetblock,boxes):
-            inlist.append(targetblock.name)
-            return enterIn(block,targetblock,direction,inlist,pushlist,game) #enter and exit will also give 0,1 inputs in addition to entering the block
-        else:
-            return 0
-
-def exitOut(block,box,row,col,direction,outlist,pushlist,game):
-    #lets do this one first
-    #block is trying to exit a box(positioned at row, col in Box) in direction
-    #this attempts an exit out of container boxes until a space is found, then attempts to either move/push to that space
-    if box is None:
-        return 0 #no space exist outside the root box
-    deldict={0:[-1,0],1:[0,-1],2:[1,0],3:[0,1]}
-    dely,delx=deldict[direction]
-    if isinstance(block.container,voidbox):
-        return 0 #void boxes can not be exited from
-    if box.name in outlist:
-        #infinite exit detected
-        infbox=infinity(block.container)
-        infbox.generateVoid()
-        game.boxdict[infbox.container.name]=infbox.container #the first repeated box generates an infinity box in a void. To ensure stuff like A-B-C-C-C... loops at C
-        game.boxdict[infbox.name]=infbox
-        return exitOut(block,infbox.container,3,3,direction,outlist,pushlist,game)
-    targetrow,targetcol=row+dely,col+delx
-    if targetrow not in range(0,box.row) or targetcol not in range(0,box.col):
-        outlist.append(box.name)
-        success=exitOut(block,box.container,box.rootrow,box.rootcol,direction,outlist,pushlist,game)
-        if success==1:
-            return 1
-        else:
-            return 0
-    targetblock=box.board[targetrow][targetcol]
-    if not targetblock.tangible:
-        box.place(targetrow,targetcol,block)
-        return 1
-    elif not targetblock.pushable:
-        return 0
-    else:
-        pushlist.append(targetblock)
-        success=push(box,targetrow,targetcol,direction,pushlist,game) #orders the targetblock to attempt a move/push in the direction
-        if success==1:
-            box.place(targetrow,targetcol,block)
-            return 1
-        if success==2:
-            return 2 #cycle detected, stop further actions
-        if isinstance(block,boxes):
-            #exiting a box by eating the obstruction
-            success=enterIn(block,box.container,(direction+2)%4,[],[],game)
-            if success==1:
-                block.container.place(block.rootrow,block.rootcol,blocks())
-                box.place(targetrow,targetcol,block)
-                return 1
-            else:
-                return 0
-        else:
-            return 0
 
 def convert(oldcode):
     #converts old game code to new game code
@@ -1029,164 +1232,9 @@ def crossReference():
             print("Colors "+nameA+" and "+nameB+" are too close, with distance "+str(dist))
     
 Intro=[['LR','LA'],['IntroGry','IntroBlu']]
-#block types: pNumber=patric, +=push, #=wall
-
-#goals
-#new idea: instead of making them a block like default empty spaces, make them a property of boxes themselves. 
-#Have them only display when printing if the block on them is the default empty block
-
-#Box Encoding:
-#Boxes will be given names from imports, and automatically generates names if not given for exports
-#ok for future notice
-#encoding box names can prob store more meaning
-#like LCLname or LRFname or LINFname can be used to denote clones, reflections, and infinity variants of box Lname
-
-#added root boxes, rootrow, and rootcol to give each box context of where it is in the parent box
-#place now automatically sets those values when placing a box inside another box
-
-#with boxdict, I don't think root boxes are a needed concept anymore. 
-#With stuff like swap and clone, having a root box is no longer a useful concept.
-#Need to rework game, import/export, and everything that involved root boxes to make use of boxdict instead
-#ok for printing I dont really want the boxes to be in random order. I guess we could do it in the order of the boxdict? Idk I want the 'main' box to always be first
-#or perhaps thats a lost cause since in some levels the main boxes shift
-#so we just go with the order of the boxdict(and if that doesnt look good, reverse order)
-
-#pseudoboxes
-#pseudoboxes are boxes that has no true interior
-#like clones, reflections, infinities, and so on.
-#later on these pseudoboxes can have independent properties such as possession, but they dont have their own meaningful interiors
-#for these, I think I will give them names that points them to their source boxes
-#Iname for infinity of name, C name for clone of name, Rname for reflection of name, and so on
-#So like, IIILA or CRLB and stuff. There is going to be things in the import that decodes these names and implements them
-
-#give exit and push an infinite loop clause
-#exit first
-#exit now takes into account all the box the block has attempted exit from in this turn, and stores them in a list by name.
-#if the next box it is attempt to exit from is in that list, then it is determined to be an infinite exit
-#an infinity box is generated with its container void, and the block exits into the void
-
-#Ok uhh thats not good
-#I realized that a pushlist needs to be present in enter and exit as well in order to handle cycles
-#otherwise the pushlist gets reset and we still get infinite pushing
-#hmmm
-
-#ok stuff for tommorw
-#every time push is invoked, the pushlist is checked
-#its newest element is compared to every element in the pushlist before it, and if any of them are the new element, then we have a cycle
-#the list from the first occurence to right before the newest element is cut into its own list
-#every block in that list gets the next block's location and the last gets the first to cycle
-
-#Colors
-# Boxes have their color stored in the dims section of the export string
-# format is length, width, R, G, B
-# if no color is specified, default to (50,150,250)
-# patrick color and pushable color are not box dependent, they are game-dependent
-# will be stored at the beginning of the game export string as its own section
-# if the first secion is not a specification, it is presumed to be default specs
-# specs in format SPEC:Patrick Colors:Pushable Colors:additional future specs (i.e the appendix gamerules) 
-
-#Basic Level Select
-#Need to learn how to make a text input
-
-#Compression rework
-#current compression is pretty bad ngl
-#names of boxes shouldnt be used to store info as it gets long and clunky. Store box infos elsewhere
-#Game code structure: Specs|Box1|Box2|Box3...
-#Specs: SPEC:PatColR,PatColG,PatColB:PushColR,PushColG,PushColB:additional specs...
-#Box encoding: BoxSpecs:LookupData:Table:Goals
-#BoxSpecs: BoxName:Rows,Cols,R,G,B,Special features(Void levels, flips, possessible, etc)
-#maybe possession should be tile tier as walls and pushables can be possessible too?
-#or just have #p and +p denote possessible walls and pushables, as possessible boxes can have possessible in boxspecs
-#pseudoboxes like clones and infinities are defined with solely BoxSpec and nothing else as they have no interior
-#LookupData: numbers with box names attached to them like 0=#,1=+,2=p0,3=VILA,4=CLB,etcetcetc
-#Table: RLE compressed table data using the lookup data
-#like 1*4,2*1,3*1,4*10,etcetcetc
-#Goals: B1-5,P2-3,etcetcetc
-#wait since we are using 4th degree denoters anyways why not just merge them all into , so like |,:,;,, instead of making 3 extra denoters
-#0,#;1,+;2,p0;3,ILB;4,CLB|1*4;2*1;3*1;4*10|B,1,5;P,2,3
-#yeah that seems better
-#outside of "simple" boxes which do need names to distingulish them, I think the display name for dependent boxes should be separate from their internal code name when on display
-#but interally they will still have their full names for coding purposes
-#like box CLB will still be called CLB internally, but when displayed it will just be called B
-#why do we need boxdict again? Isnt a list of boxes enough?
-#ok we might just switch to a list since in a list you can go in reverse or something
-#nvm boxdict is useful for lookups in cycle and infinity detection
-
-#Clones
-#Ok I thought it was just enterin that needs a minor tweak to make it work
-#but I discovered something troubling
-#there can be multiple clones of a box in a level
-#but each clone object has to have its own location state so they must be distinct
-#but they have the same attributes otherwise
-#uhoh
-#ok new plan
-#clones are only treated the same in levelcodes
-#as string doesnt store internal location
-#but import installs each clone appearance as a unique object, and export removes that uniqueness
-#ok current plan is that they are still effectively the same object
-#just deepcopies of the original generated clone
-#same name, same extension, etc
-#it is just that gdict will mark them different. gdict names doesnt really matter theorhetically
-#though I might be proven wrong.
-#oh well we will see what's wrong when we actually make clone stuff
 
 
-#phase 1: sokoban(emulating all of intro without nested boxes)
-#define the print function for a given box, the movement of a player, and general mechanics of pushing
-   #subphase 1.1: create compact encoding for boxes and games, also ability to import/export levels for ease of testing 
-   #subphase 1.2: create block and player goals, detect if win condition is met
-   #subphase 1.3: helper functions to create levels more easily
-   #subphase 1.4: Undo/Redo and reset
-#Implementation Successful!
-#game emulated up to Intro 4
 
-#phase 2: Enter 
-#define boxes inside boxes, how to enter and exit boxes, and so on. Emulates all intro and enter level up to the first recursion level
-   #subphase 2.1: Implement nested boxes into gamestate, print, and string compression
-   #subphase 2.2: Implement entering and exiting boxes, push inside and outside boxes ok perfect it works
-   #subphase 2.3: revamp the box system
-#implementation Successful!
-#game emulated up to Empty 12
-
-#phase 3: empty
-#the first level with infinity paradoxes and cyclic exits are possible.
-#need to implement cycle detection and proper infinity box handling
-   #subphase 3.1: implement pseudoboxes, boxes that has no interior except those of another box
-   #subphase 3.2: implement cycle detection to prevent infinite loops
-   #subphase 3.3: implement a special 'void' box that blocks entering any boxes within it
-   #subphase 3.4: implement an emergency protocol that generates an infinity box in a void box to solve the paradox
-   #subphase 3.5: implement push cycles
-#implementation Successful!
-#game emulated up to Eat 1
-
-#phase 4: Eat
-#define pushing boxes onto other boxes to "eat" them
-#bugs detected
-#cycles are valid actions despite nothing happening outside the cycle, so no other things like eats or enters should occur
-#implementation Successful!
-#game emulated up to Clone 1
-
-#phase 5: UI upgrade
-#add ability to get colors for boxes
-#add ability to change colors of patricks and such
-#(perhaps patrick and block palettes are game-dependent, while box colors, walls, floors, and goals are box-dependent)
-#option for wall texturing to distingulish borders from boxes of the same color
-#level select? world hub?
-#better compression algorithm maybe? RLE?
-
-#complete for now, will wait until all levels implemented before going to clone
-
-#phase 6: Level editor
-#mainly just to make these levels easier to make cause typing this shit out by commands is a pain
-#need to figure out how to do number prompts
-#ok plan
-#always split between top and bottom. Top for display and data slots and stuff, bottom for palletes be it block or color
-
-#Ok going back on the color thing
-#I think using chatgpt to identify colors is honestly a bit dumb
-#so Im gonna go back and record every color verbatim
-#and sort them into chapter sections
-#maybe I do a search function as well?
 
 
 #Test Functions
@@ -1211,7 +1259,7 @@ EatTest1='LB:3,3:#,0,0:#,0,1:#,0,2:B,1,0:#,1,1:P,1,2:#,2,0:#,2,1:#,2,2|LA:7,7:#,
    #Patrick's Parabox official level storage
 
 CloneTest1='SPEC:200,10,120:250,190,60|LA;7,7;120,210,40:0,#;1,_;2,LA;3,p0;4,CLA:0,8;1,5;0,2;1,1;2,1;1,1;3,1;1,1;0,2;1,5;0,2;4,5;0,2;1,5;0,8:B,1,2;P,1,1|CLA;C,LA'
-                 
+
 #from now on I am skipping levels and only covering what can cause issues with current code
 #maybe I will bother with the rest of the levels later but I want to do eat stuff now
 Empty8='LB:7,7:#,0,0:#,0,1:#,0,2:#,0,3:#,0,4:#,0,5:#,0,6:#,1,0:#,1,1:#,1,2:B,1,3:#,1,4:#,1,5:#,1,6:#,2,0:#,2,1:#,2,2:#,2,4:#,2,5:#,2,6:#,3,0:B,3,1:LA,3,3:B,3,5:#,3,6:#,4,0:#,4,1:#,4,2:#,4,4:#,4,5:#,4,6:#,5,0:#,5,1:#,5,2:B,5,3:#,5,4:#,5,5:#,5,6:#,6,0:#,6,1:#,6,2:#,6,3:#,6,4:#,6,5:#,6,6|LA:5,5:+,1,1:+,1,3:P,2,2:+,3,1:p0,3,3'
@@ -1239,10 +1287,10 @@ Swap1='LB:7,7,50,250,150:#,0,0:#,0,1:#,0,2:#,0,4:#,0,5:#,0,6:#,1,0:#,1,6:#,2,0:B
 
 Center6='LA:7,7:#,0,0:B,0,5:#,1,0:#,1,3:P,1,5:#,2,0:#,3,0:p0,3,3:#,3,5:#,4,0:#,5,0:LA,5,1:+,5,6:#,6,0:#,6,1:#,6,2:#,6,3:#,6,4:#,6,5:#,6,6'
 
-
-
-
-
+Clone9db1='SPEC:190,40,80:70,140,250|LA;9,9;120,200,30:0,#;1,_;2,LA;3,+;4,CLA;5,p0:0,10;1,4;0,5;1,4;0,5;1,4;0,1;2,1;0,2;3,1;4,1;5,1;1,5;0,2;1,7;0,2;1,7;0,2;1,7;0,5;1,1;0,4:B,5,7;B,6,7;P,7,7|CLA;C,LA'
+Clone10db1='SPEC:190,40,80:70,140,250|LA;7,7;120,200,30:0,#;1,_;2,LA;3,p0;4,CLA;5,LB:0,8;1,3;2,1;0,3;1,5;0,2;3,1;1,4;0,2;4,1;1,4;0,2;4,1;1,3;5,1;0,4;1,1;0,3|CLA;C,LA|LB;3,3;200,190,0:0,#;1,_:0,4;1,2;0,3:P,1,1'
+Clone10db2='SPEC:190,40,80:70,140,250|LA;7,7;120,200,30:0,#;1,_;2,LA;3,p0;4,CLA;5,LB:0,8;1,3;2,1;0,3;1,5;0,2;1,4;3,1;0,2;1,4;4,1;0,2;4,1;1,3;5,1;0,4;1,1;0,3|CLA;C,LA|LB;3,3;200,190,0:0,#;1,_:0,4;1,2;0,3:P,1,1'
+Clone12db1='SPEC:190,40,80:70,140,250|LA;9,9;120,200,30:0,#;1,_;2,p0;3,CLA;4,LB;5,LA:0,9;1,4;0,1;1,3;0,2;1,3;0,1;1,3;0,2;1,3;0,1;1,3;0,1;2,1;1,3;0,1;1,2;3,1;0,2;1,3;0,1;1,3;0,4;1,1;0,1;1,3;0,2;4,1;3,1;5,1;0,1;1,3;0,10|CLA;C,LA|LB;3,3;200,190,0:0,#;1,_:0,4;1,1;0,2;1,1;0,1:P,1,1'
 
 
 
