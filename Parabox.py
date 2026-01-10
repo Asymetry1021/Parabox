@@ -546,7 +546,7 @@ class game:
         for player in self.playerlist:
             push(player.container,player.rootrow,player.rootcol,direction,[],self)
         self.checkWin()
-        self.printGame()
+        #self.printGame()
     
     def checkWin(self):
         for boxes in self.boxdict.values():
@@ -631,7 +631,7 @@ class game:
 #functions go here
 
 
-def push(box,row,col,direction,pushlist,game):
+def push(box,row,col,direction,pushlist,game,Transfer=False):
         #cycle checker
         if len(pushlist)>1:
             lastbox=pushlist[-1]
@@ -686,7 +686,7 @@ def push(box,row,col,direction,pushlist,game):
                 return 2 #cycle detected, stop further actions
             pushlist.pop() #removes the last block from the pushlist as the push was unsuccessful
             #now check for enter or eat
-            if isinstance(nextblock,boxes) or isinstance(nextblock,pseudoboxes):
+            if (isinstance(nextblock,boxes) or isinstance(nextblock,pseudoboxes)) and not Transfer:
                 #pushing/entering into a box
                 success=enterIn(box.board[row][col],nextblock,direction,[],pushlist,game) #enter and exit will also give 0,1 inputs
                 if success==1:
@@ -846,24 +846,35 @@ def exitOut(block,box,row,col,direction,outlist,pushlist,game):
 
 def Transfer(Block,direction,TargetBox,pushlist,game):
     #placeholder for future box transfer function
-    Container=Block.container
-    if direction%2==0:
-        offset=(Block.rootcol+1/2)/Container.col
-    else:
-        offset=(Block.rootrow+1/2)/Container.row
-    while not Container is TargetBox.container:
-        if direction%2==0:
-            #N or S
-            offset=(Container.rootcol+offset)/Container.container.col
+    TransExitCandidate=Block
+    dirDict={0:[-1,0],1:[0,-1],2:[1,0],3:[0,1]}
+    delR,delC=dirDict[direction]
+    offset=1/2 #initial offset at middle of the exit face
+    while True:
+        #more complex transfer logic
+        targetR=TransExitCandidate.rootrow+delR
+        targetC=TransExitCandidate.rootcol+delC
+        limdict={0:0,1:0,2:TransExitCandidate.container.row-1,3:TransExitCandidate.container.col-1}
+        #if the exit candidate is positioned on the edge, its gonna exit, move up a level
+        if direction%2==1 and TransExitCandidate.rootcol==limdict[direction]:            
+            offset=(TransExitCandidate.rootrow+offset)/TransExitCandidate.container.row
+            TransExitCandidate=TransExitCandidate.container
+        elif direction%2==0 and TransExitCandidate.rootrow==limdict[direction]:
+            offset=(TransExitCandidate.rootcol+offset)/TransExitCandidate.container.col
+            TransExitCandidate=TransExitCandidate.container
+        elif TransExitCandidate.container is TargetBox.container and targetR in range(TransExitCandidate.container.row) and targetC in range(TransExitCandidate.container.col) and TransExitCandidate.container.board[targetR][targetC] is TargetBox:
+            break
         else:
-            offset=(Container.rootrow+offset)/Container.container.row
-        Container=Container.container
+            #not actually a transfer, declare failure
+            return 0
+    print(f"Transfer Entry: {offset}")
     #block location obtained
     targetBlock=None
     targetOffset=0
     targetScaling=1
     inList=[]
     while not targetBlock in inList:
+        inList.append(targetBlock)
         if isinstance(TargetBox,clone):
             TargetBox=TargetBox.extension
         if direction%2==0:
@@ -873,7 +884,8 @@ def Transfer(Block,direction,TargetBox,pushlist,game):
                     destcolDiscrete=col
                     break
         else:
-            destrowExact=offset*TargetBox.row
+            destrowExact=(offset-targetOffset)*TargetBox.row/targetScaling
+            print(f"Readjusting... offset: {targetOffset}, scaling: {targetScaling}, result: {destrowExact}")
             for row in range(TargetBox.row):
                 if row<=destrowExact<row+1:
                     destrowDiscrete=row
@@ -896,18 +908,21 @@ def Transfer(Block,direction,TargetBox,pushlist,game):
             return 0
         else:
             pushlist.append(targetBlock)
-            success=push(TargetBox,targetBlockR,targetBlockC,direction,pushlist,game)
+            success=push(TargetBox,targetBlockR,targetBlockC,direction,pushlist,game,Transfer=True)
             if success==1:
                 TargetBox.place(targetBlockR,targetBlockC,Block)
                 return 1
             if success==2:
                 return 2
+            pushlist.pop()
             if isinstance(targetBlock,boxes) or isinstance(targetBlock,clone) or isinstance(targetBlock,epsilon):
-                inList.append(targetBlock)
-                TargetBox=targetBlock
                 if direction%2==0:
                     targetScaling/=TargetBox.col
                     targetOffset+=destcolDiscrete*targetScaling
+                if direction%2==1:
+                    targetScaling/=TargetBox.row
+                    targetOffset+=destrowDiscrete*targetScaling
+                    TargetBox=targetBlock
             else:
                 return 0
     epsBox=epsilon(TargetBox,5,5)
