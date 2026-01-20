@@ -17,6 +17,8 @@ standardPalette={
     "HubReference":(30,140,170),
     "HubSwap":(90,240,190),
     "HubCenter":(220,100,70),
+    "HubClone":(160,255,50),
+    "HubTransfer":(60,220,255),
 
     #Intro
     "IntroPush": (250,190,60),
@@ -73,7 +75,14 @@ standardPalette={
     "ClonePat":(190,40,80),
     "CloneGry":(140,170,210),
     "CloneGrn":(120,200,30),
-    "CloneYel":(200,190,0)
+    "CloneYel":(200,190,0),
+
+    #Transfer
+    "TransPush":(240,200,60),
+    "TransPat":(200,60,60),
+    "TransBlu":(90,140,220),
+    "TransCyn":(50,150,190),
+    "TransGrn":(50,200,160)
     }
 
 with open('standardPalette.json','w') as f:
@@ -101,12 +110,11 @@ class boxes(blocks):
         self.row=row
         self.col=col
         self.name=name
-        self.board=[[blocks() for j in range(col)] for i in range(row)]
+        self.board=[[None for j in range(col)] for i in range(row)]
         for i in range(0,row):
             for j in range(0,col):
-                self.board[i][j].container=self
-                self.board[i][j].outrow=i
-                self.board[i][j].outcol=j
+                empty=blocks()
+                self.place(i,j,empty)
         #creates a box of dimension rowxcol of emptys
         self.bgoals=[]
         self.pgoals=[]
@@ -216,18 +224,18 @@ class boxes(blocks):
                     
 
     #Helper functions for making boxes easier
-    def fillrow(self,row:int,blocktype:blocks):
+    def fillrow(self,row:int,block:blocks):
         for j in range(self.col):
-            self.place(row,j,blocktype)
+            self.place(row,j,copy.deepcopy(block))
     
-    def fillcol(self,col:int,blocktype:blocks):
+    def fillcol(self,col:int,block:blocks):
         for i in range(self.row):
-            self.place(i,col,blocktype)
+            self.place(i,col,copy.deepcopy(block))
     
-    def fillrect(self,startrow:int,startcol:int,endrow:int,endcol:int,blocktype:blocks):
+    def fillrect(self,startrow:int,startcol:int,endrow:int,endcol:int,block:blocks):
         for i in range(startrow,endrow+1):
             for j in range(startcol,endcol+1):
-                self.place(i,j,blocktype)
+                self.place(i,j,copy.deepcopy(block))
     
     def fillborder(self,blocktype:blocks):
         self.fillrow(0,blocktype)
@@ -658,7 +666,7 @@ def push(box,row,col,direction,pushlist,game,Transfer=False):
         if row+dely not in range(0,box.row) or col+delx not in range(0,box.col):
             success=exitOut(box.board[row][col],box.container,box.rootrow,box.rootcol,direction,[box],pushlist,game)
             if success==1:
-                box.board[row][col]=blocks()
+                box.place(row,col,blocks())
                 return 1
             if success==2:
                 return 2 #cycle detected, stop further actions
@@ -668,7 +676,7 @@ def push(box,row,col,direction,pushlist,game,Transfer=False):
         nextblock=box.board[row+dely][col+delx] #gets the block in its direction
         if not nextblock.tangible:
             box.place(row+dely,col+delx,box.board[row][col]) #move itself to the empty spot
-            box.board[row][col]=blocks() #replaces the space behind it with an empty
+            box.place(row,col,blocks()) #replaces the space behind it with an empty
             return 1 #signals that the move was successful for next layers
         elif not nextblock.pushable:
             return 0 #the next block is a wall, nothing happens
@@ -677,10 +685,8 @@ def push(box,row,col,direction,pushlist,game,Transfer=False):
             pushlist.append(nextblock)
             success=push(box,row+dely,col+delx,direction,pushlist,game) #check if the block in front can push/move
             if success==1:
-                box.board[row+dely][col+delx]=box.board[row][col] 
-                box.board[row][col]=blocks() 
-                box.board[row+dely][col+delx].rootrow=row+dely
-                box.board[row+dely][col+delx].rootcol=col+delx 
+                box.place(row+dely,col+delx,box.board[row][col])
+                box.place(row,col,blocks()) 
                 return 1
             if success==2:
                 return 2 #cycle detected, stop further actions
@@ -690,7 +696,7 @@ def push(box,row,col,direction,pushlist,game,Transfer=False):
                 #pushing/entering into a box
                 success=enterIn(box.board[row][col],nextblock,direction,[],pushlist,game) #enter and exit will also give 0,1 inputs
                 if success==1:
-                    box.board[row][col]=blocks()
+                    box.place(row,col,blocks())
                     return 1
                 if success==2:
                     return 2
@@ -700,7 +706,7 @@ def push(box,row,col,direction,pushlist,game,Transfer=False):
                 success=enterIn(box.board[row+dely][col+delx],box.board[row][col],(direction+2)%4,[],[],game)
                 if success==1:
                     box.place(row+dely,col+delx,box.board[row][col])
-                    box.board[row][col]=blocks()
+                    box.place(row,col,blocks())
                     return 1
                 if success==2:
                     return 2
@@ -746,14 +752,21 @@ def equivalent(a,b):
     return False
 
 def enterIn(block,box,direction,inlist,pushlist,game):
+
     #block is trying to enter a box in direction
-    if isinstance(box,infinity):
-        return 0 #infinity boxes can not be entered
     if isinstance(block.container,voidbox):
         return 0 #blocks inside void boxes can not enter other boxes
-    if isinstance(box,clone):
-        box=box.extension #clones redirect to their true box for entering
-    entdict={2:[0,box.col//2],3:[box.row//2,0],0:[box.row-1,box.col//2],1:[box.row//2,box.col-1]}
+    while not (isinstance(box,boxes) or isinstance(box,epsilon)):
+        #its a bit empty for now, but nested pseudos will come in later
+        if isinstance(box,clone):
+            box=box.extension
+        elif isinstance(box,infinity):
+            return 0
+    if box.row%2==0:
+        entRdict={0:box.row-1,1:box.row//2-1,2:0,3:box.row//2-1}
+    else:
+        entRdict={0:box.row-1,1:box.row//2,2:0,3:box.row//2}
+    entCdict={0:box.col//2,1:box.col-1,2:box.col//2,3:0}
     if box.name in inlist:
         #infinite enter detected
         epsbox=epsilon(box)
@@ -761,7 +774,8 @@ def enterIn(block,box,direction,inlist,pushlist,game):
         game.boxdict[epsbox.container.name]=epsbox.container #the first repeated box generates an epsilon box in the void. To ensure stuff like A-B-C-C-C... loops at C
         game.boxdict[epsbox.name]=epsbox
         return enterIn(block,epsbox,direction,inlist,pushlist,game)   
-    entrow,entcol=entdict[direction]
+    entrow=entRdict[direction]
+    entcol=entCdict[direction]
     targetblock=box.board[entrow][entcol]
     if not targetblock.tangible:
         box.place(entrow,entcol,block)
@@ -867,25 +881,27 @@ def Transfer(Block,direction,TargetBox,pushlist,game):
         else:
             #not actually a transfer, declare failure
             return 0
-    print(f"Transfer Entry: {offset}")
     #block location obtained
     targetBlock=None
     targetOffset=0
     targetScaling=1
     inList=[]
-    while not targetBlock in inList:
-        inList.append(targetBlock)
+    while not (isinstance(TargetBox,boxes) or isinstance(TargetBox,epsilon)):
+        #its a bit empty for now, but nested pseudos will come in later
         if isinstance(TargetBox,clone):
             TargetBox=TargetBox.extension
+        elif isinstance(TargetBox,infinity):
+            return 0 #infinity boxes can not be transferred into
+    while not targetBlock in inList:
+        inList.append(targetBlock)
         if direction%2==0:
             destcolExact=(offset-targetOffset)*TargetBox.col/targetScaling
-            for col in range(TargetBox.row):
+            for col in range(TargetBox.col):
                 if col<destcolExact<=col+1:
                     destcolDiscrete=col
                     break
         else:
             destrowExact=(offset-targetOffset)*TargetBox.row/targetScaling
-            print(f"Readjusting... offset: {targetOffset}, scaling: {targetScaling}, result: {destrowExact}")
             for row in range(TargetBox.row):
                 if row<=destrowExact<row+1:
                     destrowDiscrete=row

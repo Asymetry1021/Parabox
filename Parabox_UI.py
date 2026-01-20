@@ -19,7 +19,7 @@ def draw_text(screen, text, x, y, size=20, color=(255,255,255), center=True):
         screen.blit(surf, rect)
     else:
         screen.blit(surf, (x, y))
-def drawBoard(screen,startX,startY,cellsize,box:boxes,g:game):
+def drawBoard(screen,startX,startY,cellsize,box,g:game):
     if isinstance(box,voidbox):
         color=(0,0,0)
     elif isinstance(box,epsilon):
@@ -31,40 +31,51 @@ def drawBoard(screen,startX,startY,cellsize,box:boxes,g:game):
             tile=box.board[j][i]
             tileX=startX+i*cellsize
             tileY=startY+j*cellsize
-            if not tile.tangible:
-                draw_tile(screen,tileX,tileY,cellsize,color)
-                if [j,i] in box.bgoals:
-                    draw_bgoals(screen,tileX,tileY,cellsize,color)
-                elif [j,i] in box.pgoals:
-                    draw_pgoals(screen,tileX,tileY,cellsize,color)
-            elif isinstance(tile,wall):
-                draw_wall(screen,tileX,tileY,cellsize,color)
-            elif isinstance(tile,pushable):
+            tileData=whatToDraw(tile)
+            if tileData[0]=='empty':
+                draw_tile(screen,tileX,tileY,cellsize,tileData[1])
+            elif tileData[0]=='bgoal':
+                draw_bgoals(screen,tileX,tileY,cellsize,tileData[1])
+            elif tileData[0]=='pgoal':
+                draw_pgoals(screen,tileX,tileY,cellsize,tileData[1])
+            elif tileData[0]=='wall':
+                draw_wall(screen,tileX,tileY,cellsize,tileData[1])
+            elif tileData[0]=='pushable':
                 draw_pushable(screen,tileX,tileY,cellsize,g.pushCol)
                 if [j,i] in box.bgoals:
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
-
-            elif isinstance(tile,patrick):
-                draw_patrick(screen,tileX,tileY,cellsize,g.patCol,tile.order)
+            elif tileData[0]=='patrick':
+                name=tileData[1]
+                draw_patrick(screen,tileX,tileY,cellsize,g.patCol,name)
                 if [j,i] in box.pgoals:
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
             elif isinstance(tile,boxes):
-                draw_boxes(screen,tileX,tileY,cellsize,tuple(min(255,int(1.2*c)) for c in tile.color),tile.name[1:])
+                name=tileData[1]
+                color=tileData[2]
+                draw_boxes(screen,tileX,tileY,cellsize,tuple(min(255,int(1.2*c)) for c in color),name)
                 if [j,i] in box.bgoals:
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
                 if isinstance(tile.container,voidbox):
                     draw_aura(screen,tileX,tileY,cellsize,(250,250,130))
             elif isinstance(tile,infinity):
-                draw_boxes(screen,tileX,tileY,cellsize,tuple(min(255,int(0.75*c)) for c in tile.extension.color),"INF-"+tile.extension.name[1:])
+                name=tileData[1]
+                color=tileData[2]
+                draw_boxes(screen,tileX,tileY,cellsize,tuple(min(255,int(0.75*c)) for c in color),"INF-"+name)
                 draw_aura(screen,tileX,tileY,cellsize,(250,250,130))
                 if [j,i] in box.bgoals:
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
             elif isinstance(tile,clone):
-                draw_boxes(screen,tileX,tileY,cellsize,tuple(min(255,int(1.8*c)) for c in tile.extension.color),tile.extension.name[1:])
+                name=tileData[1]
+                color=tileData[2]
+                draw_boxes(screen,tileX,tileY,cellsize,tuple(min(255,int(1.8*c)) for c in color),name)
                 if [j,i] in box.bgoals:
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
+                if isinstance(tile.container,voidbox):
+                    draw_aura(screen,tileX,tileY,cellsize,(250,250,130))
             elif isinstance(tile,epsilon):
-                draw_boxes(screen,tileX,tileY,cellsize,tuple(min(255,int(1.2*c)) for c in tile.extension.color),"Eps-"+tile.extension.name[1:])
+                name=tileData[1]
+                color=tileData[2]
+                draw_boxes(screen,tileX,tileY,cellsize,tuple(min(255,int(1.2*c)) for c in tile.extension.color),"Eps-"+name)
                 if [j,i] in box.bgoals:
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
                 if isinstance(tile.container,voidbox):
@@ -103,10 +114,12 @@ def draw_tile(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,boxco
     pygame.draw.rect(screen,tuple(min(255,int(c*0.6)) for c in boxcolor),(math.ceil(tileX),math.ceil(tileY),math.ceil(cellsize),math.ceil(cellsize)))
 
 def draw_bgoals(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,boxcolor:tuple[int,int,int]):
+    pygame.draw.rect(screen,tuple(min(255,int(c*0.6)) for c in boxcolor),(math.ceil(tileX),math.ceil(tileY),math.ceil(cellsize),math.ceil(cellsize)))
     pygame.draw.rect(screen,tuple(min(255,int(c*0.9)) for c in boxcolor),(math.ceil(tileX+cellsize/8),math.ceil(tileY+cellsize/8),math.ceil(cellsize*3/4),math.ceil(cellsize*3/4)))
     pygame.draw.rect(screen,tuple(min(255,int(c*0.6)) for c in boxcolor),(math.ceil(tileX+cellsize/4),math.ceil(tileY+cellsize/4),math.ceil(cellsize/2),math.ceil(cellsize/2)))
 
 def draw_pgoals(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,boxcolor:tuple[int,int,int]):
+    pygame.draw.rect(screen,tuple(min(255,int(c*0.6)) for c in boxcolor),(math.ceil(tileX),math.ceil(tileY),math.ceil(cellsize),math.ceil(cellsize)))
     pygame.draw.rect(screen,tuple(min(255,int(c*0.9)) for c in boxcolor),(math.ceil(tileX+cellsize/8),math.ceil(tileY+cellsize/8),math.ceil(cellsize*3/4),math.ceil(cellsize*3/4)))
     pygame.draw.circle(screen,tuple(min(255,int(c*0.6)) for c in boxcolor),(math.ceil(tileX+cellsize*5/16),math.ceil(tileY+cellsize*5/16)),math.ceil(cellsize/12))
     pygame.draw.circle(screen,tuple(min(255,int(c*0.6)) for c in boxcolor),(math.ceil(tileX+cellsize*11/16),math.ceil(tileY+cellsize*5/16)),math.ceil(cellsize/12))
@@ -123,14 +136,54 @@ def draw_aura(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,color
     pygame.draw.rect(screen,color,(math.ceil(tileX),math.ceil(tileY),math.ceil(cellsize/16),math.ceil(cellsize)))
     pygame.draw.rect(screen,color,(math.ceil(tileX+cellsize*15/16),math.ceil(tileY),math.ceil(cellsize/16),math.ceil(cellsize)))
 
-def draw_patrick(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,patcolor:tuple[int,int,int],order:int):
+def draw_patrick(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,patcolor:tuple[int,int,int],name:str):
     pygame.draw.rect(screen,patcolor,(math.ceil(tileX),math.ceil(tileY),math.ceil(cellsize),math.ceil(cellsize)))
-    draw_text(screen,"P"+str(order),math.ceil(tileX+cellsize/2),math.ceil(tileY+cellsize/2),math.ceil(cellsize/2),(0,0,0))
+    draw_text(screen,name,math.ceil(tileX+cellsize/2),math.ceil(tileY+cellsize/2),math.ceil(cellsize/2),(0,0,0))
                 
 def draw_boxes(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,color:tuple[int,int,int],name:str):
     pygame.draw.rect(screen,color,(math.ceil(tileX),math.ceil(tileY),math.ceil(cellsize),math.ceil(cellsize)))
     draw_text(screen,name,math.ceil(tileX+cellsize/2),math.ceil(tileY+cellsize/2),math.ceil(min(cellsize/2,cellsize*1.5/len(name)+1)),(0,0,0))
 
+def whatToDraw(tile):
+    #returns all the needed data to draw a tile
+    #maybe like a list with type classification, color, name, etc
+    #ok if we want to use this recursively, it just brings up the deepest extension's name and colors
+    if not tile.tangible:
+        if tile.container is None:
+            return ['empty',(0,0,0)]
+        if [tile.rootrow,tile.rootcol] in tile.container.bgoals:
+            return ['bgoal',tile.container.color]
+        if [tile.rootrow,tile.rootcol] in tile.container.pgoals:
+            return ['pgoal',tile.container.color]
+        return ['empty',tile.container.color]
+    elif isinstance(tile,wall):
+        return ['wall',tile.container.color]
+    elif isinstance(tile,pushable):
+        return ['pushable',tile.container.color]
+    elif isinstance(tile,patrick):
+        name=f"p{tile.order}"
+        return ['patrick',name]
+    elif isinstance(tile,boxes):
+        name=tile.name[1:]
+        return ['box',name,tile.color]
+    elif isinstance(tile,infinity):
+        data=whatToDraw(tile.extension)
+        if len(data)>1:
+            name=data[1]
+            color=data[2]
+            return ['infinity',name,color]
+    elif isinstance(tile,clone):
+        data=whatToDraw(tile.extension)
+        if len(data)>1:
+            name=data[1]
+            color=data[2]
+            return ['clone',name,color]
+    elif isinstance(tile,epsilon):
+        data=whatToDraw(tile.extension)
+        if len(data)>1:
+            name=data[1]
+            color=data[2]
+            return ['epsilon',name,color]
 
 
 def optimalGrid(numboxes,aspectRatio):

@@ -14,16 +14,20 @@ def main():
     data=[]
     DefaultBlocks={"Erase":blocks(),"Wall":wall(),"Block":pushable(),"Patrick":patrick(0),"BGoal":"","PGoal":""}
     AdditionalBlocks={}
-    g=game({},None,None)
     oldbox=None
+    gamePreset=None
+    g=game({},None,None)
     while not state=="quit":
         blockPalette={**DefaultBlocks,**AdditionalBlocks,**g.boxdict}
         if state=="startingMenu":
-            state,g=startingMenu(screen,clock)
+            state,g=startingMenu(screen,clock,preset=gamePreset)
             if isinstance(g,game):
                 blockPalette={**DefaultBlocks,**AdditionalBlocks,**g.boxdict}
         if state=="gameSpecs":
             state,data=gameSpecs(screen,clock,g)
+            if isinstance(data,list):
+                AdditionalBlocks={}
+                gamePreset=data
         elif state=="boxSpecs":
             if not data is None:
                 state,data=boxSpecs(screen,clock,g,data)
@@ -45,7 +49,7 @@ def main():
 
     return
 
-def startingMenu(screen,clock):
+def startingMenu(screen,clock,preset=None):
     #the pygame loop for the starting menu
     running=True
     existingLevel=""
@@ -61,6 +65,9 @@ def startingMenu(screen,clock):
                 where=whereStartingMenuClicked(mouseX,mouseY)
                 if where=="NewLevel":
                     g=game({},None,None)
+                    if not preset is None:
+                        g.patCol=preset[0]
+                        g.pushCol=preset[1]
                     return ["gameSpecs",g]
                 elif where=="ExistingLevel":
                     selectionTarget="ExistingLevel"
@@ -134,7 +141,6 @@ def gameSpecs(screen,clock,g):
     PalettePage=1
     TextEntryMode=False
     TextEntry=""
-    SearchTerm=""
     SearchEntryMode=False
     while running:
         for event in pygame.event.get():
@@ -157,14 +163,8 @@ def gameSpecs(screen,clock,g):
                     TextEntryMode=False
                     if SelectionTarget=="Name":
                         g.Name=TextEntry
-                    elif SelectionTarget=="Search":
-                        SearchTerm=TextEntry
                     TextEntry=""
                     SelectionTarget=""
-                elif SearchEntryMode and not where=="Search":
-                    SearchEntryMode=False
-                    SearchTerm=TextEntry
-                    TextEntry=""
                 if where=="Patrick" and not SelectionTarget=="Patrick":
                     SelectionTarget="Patrick"
                 elif where=="Patrick" and SelectionTarget=="Patrick":
@@ -185,7 +185,7 @@ def gameSpecs(screen,clock,g):
                     print(exportString)
                     with open("levels.json", "w", encoding="utf-8") as f:
                         json.dump(Levels, f, indent=4)
-                    return ["startingMenu",None]
+                    return ["startingMenu",[g.patCol,g.pushCol]]
                 elif where in standardPalette.keys() and SelectionTarget=="Patrick":
                     g.patCol=standardPalette[where]
                 elif where in standardPalette.keys() and SelectionTarget=="Pushable":
@@ -464,13 +464,16 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:tuple[int,int
     #draws the box specs editor onto the screen
     SpecXstart=100
     SpecYstart=50
-    SpecXend=900
-    SpecYend=350
     boundsize=200
     boxsize=200*3//4
     descList=["Name","Row","Column","Color","Special"]
     if not boxSpecial=="":
         descList.append("Extension")
+        if not boxExtension is None:
+            extension=g.boxdict[boxExtension]
+            while not isinstance(extension,boxes):
+                extension=extension.extension
+            boxExtension=extension.name
     for i in range(6):
         row=i//4
         col=i%4
@@ -778,6 +781,8 @@ def drawPalette(screen,paletteDict:dict,page:int,textEntry:str="",searchEntryMod
             continue
         itemName=paletteList[i+8*(page-1)]
         item=paletteDict[itemName]
+        if isinstance(item,boxes) or isinstance(item,pseudoboxes) or isinstance(item,patrick):
+            itemData=whatToDraw(item)
         if isinstance(item,tuple):
             pygame.draw.rect(screen,item,(rectx,recty,80,80))
             draw_text(screen,itemName,rectx+40,recty+90,min(20,boxsize*2//(len(itemName)+1)),(255,255,255))
@@ -797,18 +802,24 @@ def drawPalette(screen,paletteDict:dict,page:int,textEntry:str="",searchEntryMod
             draw_pushable(screen,rectx,recty,80,g.pushCol)
             draw_text(screen,"Pushable",rectx+40,recty+90,20,(0,0,0))
         elif isinstance(item,patrick):
-            draw_patrick(screen,rectx,recty,80,g.patCol,item.order)
-            draw_text(screen,"Patrick"+str(item.order),rectx+40,recty+90,20,(0,0,0))
-           
+            name=itemData[1]
+            draw_patrick(screen,rectx,recty,80,g.patCol,name)
+            draw_text(screen,name,rectx+40,recty+90,20,(0,0,0))      
         elif isinstance(item,boxes):
-            draw_boxes(screen,rectx,recty,80,tuple(min(255,int(1.2*c)) for c in item.color),item.name.removeprefix('L'))
-            draw_text(screen,item.name.removeprefix('L'),rectx+40,recty+90,min(20,boxsize*2//(len(item.name))),(0,0,0))
+            name=itemData[1]
+            color=itemData[2]
+            draw_boxes(screen,rectx,recty,80,tuple(min(255,int(1.2*c)) for c in color),name)
+            draw_text(screen,name,rectx+40,recty+90,min(20,boxsize*2//(len(name)+1)),(0,0,0))
         elif isinstance(item,infinity):
-            draw_boxes(screen,rectx,recty,80,tuple(min(255,int(0.75*c)) for c in item.extension.color),"INF-"+item.extension.name[1:])
-            draw_text(screen,"INF-"+item.extension.name.removeprefix('L'),rectx+40,recty+90,min(20,boxsize*2//(len("INF-"+item.extension.name)+1)),(0,0,0))
+            name=itemData[1]
+            color=itemData[2]
+            draw_boxes(screen,rectx,recty,80,tuple(min(255,int(0.75*c)) for c in color),"INF-"+name)
+            draw_text(screen,"INF-"+name,rectx+40,recty+90,min(20,boxsize*2//(len("INF-"+name)+1)),(0,0,0))
         elif isinstance(item,clone):
-            draw_boxes(screen,rectx,recty,80,tuple(min(255,int(1.8*c)) for c in item.extension.color),item.extension.name[1:])
-            draw_text(screen,"CLN-"+item.extension.name.removeprefix('L'),rectx+40,recty+90,min(20,boxsize*2//(len("CLN-"+item.extension.name))),(0,0,0)) 
+            name=itemData[1]
+            color=itemData[2]
+            draw_boxes(screen,rectx,recty,80,tuple(min(255,int(1.8*c)) for c in color),name)
+            draw_text(screen,"CLN-"+name,rectx+40,recty+90,min(20,boxsize*2//(len("CLN-"+name)+1)),(0,0,0)) 
         else:
             pygame.draw.rect(screen,(100,100,100),(rectx,recty,80,80))
         
