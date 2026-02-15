@@ -57,6 +57,8 @@ def drawBoard(screen,startX,startY,cellsize,box,g:game):
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
                 if isinstance(tile.container,voidbox):
                     draw_aura(screen,tileX,tileY,cellsize,(250,250,130))
+                if tile.flipped:
+                    draw_flipped_aura(screen,tileX,tileY,cellsize)
             elif isinstance(tile,infinity):
                 name=tileData[1]
                 color=tileData[2]
@@ -64,6 +66,8 @@ def drawBoard(screen,startX,startY,cellsize,box,g:game):
                 draw_aura(screen,tileX,tileY,cellsize,(250,250,130))
                 if [j,i] in box.bgoals:
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
+                if tile.flipped:
+                    draw_flipped_aura(screen,tileX,tileY,cellsize)
             elif isinstance(tile,clone):
                 name=tileData[1]
                 color=tileData[2]
@@ -72,6 +76,8 @@ def drawBoard(screen,startX,startY,cellsize,box,g:game):
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
                 if isinstance(tile.container,voidbox):
                     draw_aura(screen,tileX,tileY,cellsize,(250,250,130))
+                if tile.flipped:
+                    draw_flipped_aura(screen,tileX,tileY,cellsize)
             elif isinstance(tile,epsilon):
                 name=tileData[1]
                 color=tileData[2]
@@ -80,6 +86,8 @@ def drawBoard(screen,startX,startY,cellsize,box,g:game):
                     draw_aura(screen,tileX,tileY,cellsize,(255,255,255))
                 if isinstance(tile.container,voidbox):
                     draw_aura(screen,tileX,tileY,cellsize,(250,250,130))
+                if tile.flipped:
+                    draw_flipped_aura(screen,tileX,tileY,cellsize)
                     
             
                     
@@ -143,6 +151,11 @@ def draw_patrick(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,pa
 def draw_boxes(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float,color:tuple[int,int,int],name:str):
     pygame.draw.rect(screen,color,(math.ceil(tileX),math.ceil(tileY),math.ceil(cellsize),math.ceil(cellsize)))
     draw_text(screen,name,math.ceil(tileX+cellsize/2),math.ceil(tileY+cellsize/2),math.ceil(min(cellsize/2,cellsize*1.5/len(name)+1)),(0,0,0))
+
+def draw_flipped_aura(screen:pygame.Surface,tileX:float,tileY:float,cellsize:float):
+    rect_surf=pygame.Surface((math.ceil(cellsize/8),math.ceil(cellsize)),pygame.SRCALPHA)
+    rect_surf.fill((255,255,255,90))
+    screen.blit(rect_surf,(math.ceil(tileX+cellsize*3/4),math.ceil(tileY)))
 
 def whatToDraw(tile):
     #returns all the needed data to draw a tile

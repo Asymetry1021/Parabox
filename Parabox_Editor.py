@@ -23,6 +23,9 @@ def main():
             state,g=startingMenu(screen,clock,preset=gamePreset)
             if isinstance(g,game):
                 blockPalette={**DefaultBlocks,**AdditionalBlocks,**g.boxdict}
+                if len(g.boxdict)>0:
+                    oldbox=list(g.boxdict.keys())[0]
+            
         if state=="gameSpecs":
             state,data=gameSpecs(screen,clock,g)
             if isinstance(data,list):
@@ -303,6 +306,7 @@ def boxSpecs(screen,clock,g:game,boxName=""):
         else:
             boxSpecial=""
             boxExtension=None
+        boxFlipped=box.flipped
     else:
         boxName=""
         boxRow=None
@@ -310,13 +314,14 @@ def boxSpecs(screen,clock,g:game,boxName=""):
         boxColor=None
         boxSpecial=""
         boxExtension=None
+        boxFlipped=False
     running=True
     TextEntryMode=False
     SearchEntryMode=False
     TextEntry=""
     SelectionTarget=""
     PalettePage=1
-    SearchTerm=""
+    
     while running:
         for event in pygame.event.get():
             if event.type==pygame.QUIT:
@@ -352,7 +357,7 @@ def boxSpecs(screen,clock,g:game,boxName=""):
                                 boxCol=None
                         elif SelectionTarget=="Special" and TextEntry in ["Infinity","Clone","Epsilon","Void"]:
                             boxSpecial=TextEntry
-                if where in ["Name","Row","Column","Special"]:
+                if where in ["Name","Row","Column","Special"] and not (boxName in g.boxdict):
                     TextEntryMode=True
                     TextEntry=""
                     SelectionTarget=where
@@ -389,6 +394,8 @@ def boxSpecs(screen,clock,g:game,boxName=""):
                     SelectionTarget="Extension"
                 elif where=="Extension" and SelectionTarget=="Extension":
                     SelectionTarget=""
+                if where == "Flipped":
+                    boxFlipped=not boxFlipped
                 if where=="Default":
                     boxName="LR"
                     boxRow=5
@@ -398,13 +405,13 @@ def boxSpecs(screen,clock,g:game,boxName=""):
                     boxExtension=None
                 if where=="CreateBox" and not boxName=="" and not boxName in g.boxdict:
                     if boxSpecial=="" and not boxRow is None and not boxCol is None and not boxColor is None:
-                        newBox=boxes(boxRow,boxCol,boxName,boxColor)
+                        newBox=boxes(row=boxRow,col=boxCol,name=boxName,color=boxColor,flipped=boxFlipped)
                     elif boxSpecial=="Infinity" and not boxExtension is None:
-                        newBox=infinity(g.boxdict[boxExtension])
+                        newBox=infinity(g.boxdict[boxExtension],flipped=boxFlipped)
                     elif boxSpecial=="Clone" and not boxExtension is None:
-                        newBox=clone(g.boxdict[boxExtension])
+                        newBox=clone(g.boxdict[boxExtension],flipped=boxFlipped)
                     elif boxSpecial=="Epsilon" and not boxExtension is None and not boxRow is None and not boxCol is None:
-                        newBox=epsilon(g.boxdict[boxExtension],boxRow,boxCol)
+                        newBox=epsilon(g.boxdict[boxExtension],boxRow,boxCol,flipped=boxFlipped)
                     elif boxSpecial=="Void":
                         newBox=voidbox(7,7,boxName)
                     else:
@@ -414,6 +421,7 @@ def boxSpecs(screen,clock,g:game,boxName=""):
                 elif where=="CreateBox" and boxName in g.boxdict:
                     box=g.boxdict[boxName]
                     box.color=boxColor
+                    box.flipped=boxFlipped
                     return ["levelEditor",boxName]
 
             elif event.type==pygame.KEYDOWN:
@@ -450,7 +458,7 @@ def boxSpecs(screen,clock,g:game,boxName=""):
                     PalettePage+=1
                 #additional key handling for text input would go here
         screen.fill((10,30,60))
-        drawBoxSpecs(screen,boxName,boxRow,boxCol,boxColor,boxSpecial,TextEntry,SelectionTarget,TextEntryMode,g,boxExtension)
+        drawBoxSpecs(screen,boxName,boxRow,boxCol,boxColor,boxSpecial,TextEntry,SelectionTarget,TextEntryMode,g,boxExtension,boxFlipped)
         if SelectionTarget=="Color":
             drawPalette(screen,{k:v for k,v in standardPalette.items() if TextEntry.lower() in k.lower()},PalettePage,TextEntry,SearchEntryMode)
         elif SelectionTarget=="Extension" and not boxSpecial=="":
@@ -460,13 +468,13 @@ def boxSpecs(screen,clock,g:game,boxName=""):
 
     return
 
-def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:tuple[int,int,int],boxSpecial:str,textEntry,SelectionTarget:str,textEntrymode:bool,g:game,boxExtension:str=None):
+def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:tuple[int,int,int],boxSpecial:str,textEntry,SelectionTarget:str,textEntrymode:bool,g:game,boxExtension:str=None,boxFlipped:bool=False):
     #draws the box specs editor onto the screen
     SpecXstart=100
     SpecYstart=50
     boundsize=200
     boxsize=200*3//4
-    descList=["Name","Row","Column","Color","Special"]
+    descList=["Name","Row","Column","Color","Flipped","Special"]
     if not boxSpecial=="":
         descList.append("Extension")
         if not boxExtension is None:
@@ -474,10 +482,10 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:tuple[int,int
             while not isinstance(extension,boxes):
                 extension=extension.extension
             boxExtension=extension.name
-    for i in range(6):
+    for i in range(len(descList)):
         row=i//4
         col=i%4
-        if i==5 and boxSpecial in ["","Void"]:
+        if i==6 and boxSpecial in ["","Void"]:
             continue
         if descList[i]==SelectionTarget:
             pygame.draw.rect(screen,(255,255,255),(SpecXstart+boundsize*col-5,SpecYstart+boundsize*row-5,boxsize+10,boxsize+10))
@@ -523,6 +531,15 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:tuple[int,int
                 pygame.draw.line(screen,(255,0,0),(x,y),(x+size,y+size),10)
                 pygame.draw.line(screen,(255,0,0),(x+size,y),(x,y+size),10)
         elif i==4:
+            if boxFlipped:
+                pygame.draw.rect(screen,(120,240,120),(math.ceil(SpecXstart+boundsize*col+boxsize/16),math.ceil(SpecYstart+boundsize*row+boxsize/16),math.ceil(boxsize*7/8),math.ceil(boxsize*7/8)))
+            if boxSpecial=="Void":
+                x = SpecXstart + boundsize*col
+                y = SpecYstart + boundsize*row
+                size = boxsize
+                pygame.draw.line(screen,(255,0,0),(x,y),(x+size,y+size),10)
+                pygame.draw.line(screen,(255,0,0),(x+size,y),(x,y+size),10)
+        elif i==5:
             draw_text(screen,boxSpecial,SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,min(40,boxsize*2//(len(boxSpecial)+1)),(0,0,0))
             if boxName in g.boxdict:
                 x = SpecXstart + boundsize*col
@@ -532,7 +549,7 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:tuple[int,int
                 pygame.draw.line(screen,(255,0,0),(x+size,y),(x,y+size),10)
         if descList[i]==SelectionTarget and textEntrymode:
             draw_text(screen,textEntry,SpecXstart+boundsize*col+boxsize/2,SpecYstart+boundsize*row+boxsize/2,min(40,boxsize*2//(len(textEntry)+1)),(0,0,0))
-        elif i==5 and boxExtension is not None:
+        elif i==6 and boxExtension is not None:
             draw_boxes(screen,SpecXstart+boundsize*col,SpecYstart+boundsize*row,boxsize,g.boxdict[boxExtension].color,boxExtension[1:])
             if boxName in g.boxdict:
                 x = SpecXstart + boundsize*col
@@ -553,20 +570,20 @@ def drawBoxSpecs(screen,boxName:str,boxRow:int,boxCol:int,boxColor:tuple[int,int
 
 def whereBoxSpecClicked(mouseX:int,mouseY:int,boxSpecial:str):
     #returns what part of the box specs was clicked on
-    descList=["Name","Row","Column","Color","Special"]
+    descList=["Name","Row","Column","Color","Flipped","Special"]
     if not boxSpecial=="":
         descList.append("Extension")
-    for i in range(6):
+    for i in range(7):
         row=i//4
         col=i%4
-        if i==5 and boxSpecial=="":
+        if i==6 and boxSpecial=="":
             continue
         rectx=100+200*col
         recty=50+200*row
-        if mouseX>=rectx and mouseX<=rectx+150 and mouseY>=recty and mouseY<=recty+150 and i in range(5):
+        if mouseX>=rectx and mouseX<=rectx+150 and mouseY>=recty and mouseY<=recty+150 and i in range(6):
             return descList[i]
-        elif mouseX>=rectx and mouseX<=rectx+150 and mouseY>=recty and mouseY<=recty+150 and i==5 and not boxSpecial=="":
-            return descList[5]
+        elif mouseX>=rectx and mouseX<=rectx+150 and mouseY>=recty and mouseY<=recty+150 and i==6 and not boxSpecial=="":
+            return descList[6]
     if mouseX>=1100 and mouseX<=1200 and mouseY>=0 and mouseY<=50:
         return "CreateBox"
     if mouseX>=1100 and mouseX<=1200 and mouseY>=50 and mouseY<=100:
@@ -810,16 +827,22 @@ def drawPalette(screen,paletteDict:dict,page:int,textEntry:str="",searchEntryMod
             color=itemData[2]
             draw_boxes(screen,rectx,recty,80,tuple(min(255,int(1.2*c)) for c in color),name)
             draw_text(screen,name,rectx+40,recty+90,min(20,boxsize*2//(len(name)+1)),(0,0,0))
+            if item.flipped:
+                draw_flipped_aura(screen,rectx,recty,80)
         elif isinstance(item,infinity):
             name=itemData[1]
             color=itemData[2]
             draw_boxes(screen,rectx,recty,80,tuple(min(255,int(0.75*c)) for c in color),"INF-"+name)
             draw_text(screen,"INF-"+name,rectx+40,recty+90,min(20,boxsize*2//(len("INF-"+name)+1)),(0,0,0))
+            if item.flipped:
+                draw_flipped_aura(screen,rectx,recty,80)
         elif isinstance(item,clone):
             name=itemData[1]
             color=itemData[2]
             draw_boxes(screen,rectx,recty,80,tuple(min(255,int(1.8*c)) for c in color),name)
             draw_text(screen,"CLN-"+name,rectx+40,recty+90,min(20,boxsize*2//(len("CLN-"+name)+1)),(0,0,0)) 
+            if item.flipped:
+                draw_flipped_aura(screen,rectx,recty,80)
         else:
             pygame.draw.rect(screen,(100,100,100),(rectx,recty,80,80))
         

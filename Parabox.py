@@ -19,6 +19,8 @@ standardPalette={
     "HubCenter":(220,100,70),
     "HubClone":(160,255,50),
     "HubTransfer":(60,220,255),
+    "HubOpen":(80,120,190),
+    "HubFlip":(210,140,255),
 
     #Intro
     "IntroPush": (250,190,60),
@@ -82,7 +84,21 @@ standardPalette={
     "TransPat":(200,60,60),
     "TransBlu":(90,140,220),
     "TransCyn":(50,150,190),
-    "TransGrn":(50,200,160)
+    "TransGrn":(50,200,160),
+
+    #Open
+    "OpenPush":(180,220,70),
+    "OpenPat":(240,100,50),
+    "OpenBlu":(100,150,230),
+    "OpenOrg":(255,160,60),
+    "OpenPur":(100,70,180),
+
+    #Flip
+    "FlipPush":(90,190,160),
+    "FlipPat":(210,80,190),
+    "FlipBlu":(90,110,230),
+    "FlipPur":(120,110,250),
+    "FlipRed":(170,70,100)
     }
 
 with open('standardPalette.json','w') as f:
@@ -105,7 +121,7 @@ class boxes(blocks):
     #has a defined interior and dimensions, also boolean
     pushable=True
     tangible=True
-    def __init__(self,row:int,col:int,name:str=None,color:tuple[int,int,int]=(50,150,250)):
+    def __init__(self,row:int,col:int,name:str=None,color:tuple[int,int,int]=(50,150,250),flipped:bool=False):
         super().__init__()
         self.row=row
         self.col=col
@@ -118,6 +134,7 @@ class boxes(blocks):
         #creates a box of dimension rowxcol of emptys
         self.bgoals=[]
         self.pgoals=[]
+        self.flipped=flipped
         if isinstance(color,str):
             self.color=standardPalette[color]
         else:
@@ -188,6 +205,8 @@ class boxes(blocks):
         exportstr=self.name
         children=[] #a list of sub-boxes in the box to be compressed separately
         exportstr+=":"+str(self.row)+","+str(self.col)+","+str(self.color[0])+","+str(self.color[1])+","+str(self.color[2])
+        if self.flipped:
+            exportstr+=";F"
         for i in range(self.row):
             for j in range(self.col):
                 space=self.board[i][j]
@@ -213,6 +232,8 @@ class boxes(blocks):
         Specs=self.name+";"+str(self.row)+","+str(self.col)+";"+str(self.color[0])+","+str(self.color[1])+","+str(self.color[2])
         if isinstance(self,voidbox):
             Specs+=";V"
+        if self.flipped:
+            Specs+=";F"
         #Specs complete for now
         boardstr=exportBoardRLE(self.board)
         goalstr=exportGoalsRLE(self.bgoals,self.pgoals)
@@ -343,9 +364,10 @@ class pseudoboxes(blocks):
     tangible=True
     pushable=True
     playable=False
-    def __init__(self,truebox:Union[boxes,pseudoboxes]):
+    def __init__(self,truebox:Union[boxes,pseudoboxes],flipped:bool=False):
         super().__init__()
         self.extension=truebox
+        self.flipped=flipped
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.name}) is in {self.container.name} at ({self.rootrow},{self.rootcol})"
@@ -358,7 +380,9 @@ class pseudoboxes(blocks):
         if isinstance(self,clone):
             Specs+=";C,"+self.extension.name
         if isinstance(self,epsilon):
-            Specs+=";"+str(self.row)+","+str(self.col)+";E,"+self.extension.name+","
+            Specs+=";"+str(self.row)+","+str(self.col)+";E,"+self.extension.name
+        if self.flipped:
+            Specs+=";F"
         #Specs complete for now
         #once flips and epsilons which have interiers are added, the board copy will be needed
         return Specs
@@ -366,8 +390,8 @@ class pseudoboxes(blocks):
 
 class infinity(pseudoboxes):
     #infinity boxes can not be entered period
-    def __init__(self,truebox:Union[boxes,pseudoboxes]):
-        super().__init__(truebox)
+    def __init__(self,truebox:Union[boxes,pseudoboxes],flipped:bool=False):
+        super().__init__(truebox,flipped=flipped)
         if truebox is None:
             self.name=""
         else:
@@ -382,8 +406,8 @@ class infinity(pseudoboxes):
     
 class clone(pseudoboxes):
     #clones reference the interior of another box for entering only
-    def __init__(self,truebox:Union[boxes,pseudoboxes]):
-        super().__init__(truebox)
+    def __init__(self,truebox:Union[boxes,pseudoboxes],flipped:bool=False):
+        super().__init__(truebox,flipped=flipped)
         if not truebox is None:
             self.name='C'+truebox.name
     def __deepcopy__(self, memo):
@@ -396,8 +420,8 @@ class clone(pseudoboxes):
 
 class epsilon(pseudoboxes):
     #the paradox breaker for infinite enters
-    def __init__(self,truebox:Union[boxes,pseudoboxes],row=5,col=5):
-        super().__init__(truebox)
+    def __init__(self,truebox:Union[boxes,pseudoboxes],row=5,col=5,flipped:bool=False):
+        super().__init__(truebox,flipped=flipped)
         self.row=row
         self.col=col
         self.board=[[blocks() for j in range(col)] for i in range(row)]
@@ -550,8 +574,8 @@ class game:
         #moves every player block
         self.undochain.append(self.exportGameRLE())
         self.redochain=[]
-        self.lastmove=direction
         for player in self.playerlist:
+            self.lastmove=direction
             push(player.container,player.rootrow,player.rootcol,direction,[],self)
         self.checkWin()
         #self.printGame()
@@ -756,11 +780,20 @@ def enterIn(block,box,direction,inlist,pushlist,game):
     #block is trying to enter a box in direction
     if isinstance(block.container,voidbox):
         return 0 #blocks inside void boxes can not enter other boxes
+    if box.flipped and direction in [1,3]:
+        #entering from left or right into a flipped box flips the direction
+        direction=(direction+2)%4
+    if box.flipped and isinstance(block,boxes) or isinstance(block,pseudoboxes):
+        #flipped boxes entering flipped boxes get flipped
+        block.flipped=not block.flipped
     while not (isinstance(box,boxes) or isinstance(box,epsilon)):
         #its a bit empty for now, but nested pseudos will come in later
         if isinstance(box,clone):
             box=box.extension
         elif isinstance(box,infinity):
+            if box.flipped and (isinstance(block,boxes) or isinstance(block,pseudoboxes)):
+                #if the chained exit is unsuccessful, the presumed flip gets reversed
+                block.flipped=not block.flipped
             return 0
     if box.row%2==0:
         entRdict={0:box.row-1,1:box.row//2-1,2:0,3:box.row//2-1}
@@ -781,6 +814,9 @@ def enterIn(block,box,direction,inlist,pushlist,game):
         box.place(entrow,entcol,block)
         return 1
     elif not targetblock.pushable:
+        if box.flipped and (isinstance(block,boxes) or isinstance(block,pseudoboxes)):
+                #if the chained exit is unsuccessful, the presumed flip gets reversed
+                block.flipped=not block.flipped
         return 0
     else:
         pushlist.append(targetblock)
@@ -788,12 +824,37 @@ def enterIn(block,box,direction,inlist,pushlist,game):
         if success==1:
             box.place(entrow,entcol,block)
             return 1
-        elif success==2:
+        if success==2:
+            if box.flipped and (isinstance(block,boxes) or isinstance(block,pseudoboxes)):
+                #if the chained exit is unsuccessful, the presumed flip gets reversed
+                block.flipped=not block.flipped
             return 2 #cycle detected, stop further actions
         elif isinstance(targetblock,boxes) or isinstance(targetblock,clone) or isinstance(targetblock,epsilon):
             inlist.append(box.name)
-            return enterIn(block,targetblock,direction,inlist,pushlist,game) #enter and exit will also give 0,1 inputs in addition to entering the block
+            success=enterIn(block,targetblock,direction,inlist,pushlist,game) #enter and exit will also give 0,1 inputs in addition to entering the block
+            if success==0:
+                if box.flipped and (isinstance(block,boxes) or isinstance(block,pseudoboxes)):
+                    #if the chained exit is unsuccessful, the presumed flip gets reversed
+                    block.flipped=not block.flipped
+            return success
+        if isinstance(block,boxes):
+            #exiting a box by eating the obstruction
+            success=enterIn(targetblock,block,(direction+2)%4,[],[],game)
+            if success==1:
+                block.container.place(block.rootrow,block.rootcol,blocks())
+                box.place(entrow,entcol,block)
+                return 1
+            if box.flipped and (isinstance(block,boxes) or isinstance(block,pseudoboxes)):
+                #if the chained exit is unsuccessful, the presumed flip gets reversed
+                block.flipped=not block.flipped
+            if success==2:
+                return 2
+            else:
+                return 0
         else:
+            if box.flipped and (isinstance(block,boxes) or isinstance(block,pseudoboxes)):
+                #if the chained exit is unsuccessful, the presumed flip gets reversed
+                block.flipped=not block.flipped
             return 0
 
 def exitOut(block,box,row,col,direction,outlist,pushlist,game):
@@ -802,10 +863,17 @@ def exitOut(block,box,row,col,direction,outlist,pushlist,game):
     #this attempts an exit out of container boxes until a space is found, then attempts to either move/push to that space
     if box is None:
         return 0 #no space exist outside the root box
-    deldict={0:[-1,0],1:[0,-1],2:[1,0],3:[0,1]}
-    dely,delx=deldict[direction]
     if isinstance(block.container,voidbox):
         return 0 #void boxes can not be exited from
+    basebox=box.board[row][col]
+    if basebox.flipped and direction in [1,3]:
+        #exiting from left or right of a flipped box flips the direction
+        direction=(direction+2)%4
+    if basebox.flipped and (isinstance(block,boxes) or isinstance(block,pseudoboxes)):
+        #flipped boxes exiting flipped boxes get flipped
+        block.flipped=not block.flipped
+    deldict={0:[-1,0],1:[0,-1],2:[1,0],3:[0,1]}
+    dely,delx=deldict[direction]
     if box.name in outlist:
         #infinite exit detected
         infbox=infinity(block.container)
@@ -820,12 +888,18 @@ def exitOut(block,box,row,col,direction,outlist,pushlist,game):
         if success==1:
             return 1
         else:
+            if basebox.flipped and (isinstance(block,boxes) or isinstance(block,pseudoboxes)):
+                #if the chained exit is unsuccessful, the presumed flip gets reversed
+                block.flipped=not block.flipped
             return 0
     targetblock=box.board[targetrow][targetcol]
     if not targetblock.tangible:
         box.place(targetrow,targetcol,block)
         return 1
     elif not targetblock.pushable:
+        if basebox.flipped and (isinstance(block,boxes) or isinstance(block,pseudoboxes)):
+                #if the chained exit is unsuccessful, the presumed flip gets reversed
+                block.flipped=not block.flipped
         return 0
     else:
         pushlist.append(targetblock)
@@ -834,64 +908,83 @@ def exitOut(block,box,row,col,direction,outlist,pushlist,game):
             box.place(targetrow,targetcol,block)
             return 1
         if success==2:
+            if basebox.flipped and (isinstance(block,boxes) or isinstance(block,pseudoboxes)):
+                #if the chained exit is unsuccessful, the presumed flip gets reversed
+                block.flipped=not block.flipped
             return 2 #cycle detected, stop further actions
         if isinstance(targetblock,boxes) or isinstance(targetblock,clone) or isinstance(targetblock,epsilon):
             #transfer case
-            success=Transfer(block,direction,targetblock,pushlist,game)
+            success=Transfer(block,targetblock,pushlist,game)
             if success==1:
                 return 1
+            if basebox.flipped and (isinstance(block,boxes) or isinstance(block,pseudoboxes)):
+                #if the chained exit is unsuccessful, the presumed flip gets reversed
+                block.flipped=not block.flipped
             if success==2:
                 return 2
             else:
                 return 0
         if isinstance(block,boxes):
             #exiting a box by eating the obstruction
-            success=enterIn(targetblock,box.container,(direction+2)%4,[],[],game)
+            success=enterIn(targetblock,block,(direction+2)%4,[],[],game)
             if success==1:
                 block.container.place(block.rootrow,block.rootcol,blocks())
                 box.place(targetrow,targetcol,block)
                 return 1
+            if basebox.flipped and (isinstance(block,boxes) or isinstance(block,pseudoboxes)):
+                #if the chained exit is unsuccessful, the presumed flip gets reversed
+                block.flipped=not block.flipped
             if success==2:
                 return 2
             else:
                 return 0
         else:
+            if basebox.flipped and (isinstance(block,boxes) or isinstance(block,pseudoboxes)):
+                #if the chained exit is unsuccessful, the presumed flip gets reversed
+                block.flipped=not block.flipped
             return 0
 
-def Transfer(Block,direction,TargetBox,pushlist,game):
+def Transfer(Block,TargetBox,pushlist,game):
     #placeholder for future box transfer function
     TransExitCandidate=Block
-    dirDict={0:[-1,0],1:[0,-1],2:[1,0],3:[0,1]}
-    delR,delC=dirDict[direction]
     offset=1/2 #initial offset at middle of the exit face
+    direction=game.lastmove
+    print(TargetBox.name, direction,TargetBox.flipped)
     while True:
+        #ok consider what we are doing here
+        #when a block is exiting in a direction from a box, we see if the box is on the border of that direction in the box
+        limdict={0:0,1:0,2:TransExitCandidate.container.row-1,3:TransExitCandidate.container.col-1}
+        limbound=limdict[direction]
+        if direction%2==1 and TransExitCandidate.rootcol==limbound:
+            #if we are exiting horizontally and the candidate is on the horizontal border, we move up a level and adjust the offset
+            offset=(TransExitCandidate.rootrow+offset)/TransExitCandidate.container.row
+            TransExitCandidate=TransExitCandidate.container
+            if TransExitCandidate.flipped:
+                direction=(direction+2)%4
+        elif direction%2==0 and TransExitCandidate.rootrow==limbound:
+            offset=(TransExitCandidate.rootcol+offset)/TransExitCandidate.container.col
+            TransExitCandidate=TransExitCandidate.container
+        #ok, we dont need the targetR and C until neither of the above is true
+        dirDict={0:[-1,0],1:[0,-1],2:[1,0],3:[0,1]}
+        delR,delC=dirDict[direction]
         #more complex transfer logic
         targetR=TransExitCandidate.rootrow+delR
         targetC=TransExitCandidate.rootcol+delC
-        limdict={0:0,1:0,2:TransExitCandidate.container.row-1,3:TransExitCandidate.container.col-1}
-        #if the exit candidate is positioned on the edge, its gonna exit, move up a level
-        if direction%2==1 and TransExitCandidate.rootcol==limdict[direction]:            
-            offset=(TransExitCandidate.rootrow+offset)/TransExitCandidate.container.row
-            TransExitCandidate=TransExitCandidate.container
-        elif direction%2==0 and TransExitCandidate.rootrow==limdict[direction]:
-            offset=(TransExitCandidate.rootcol+offset)/TransExitCandidate.container.col
-            TransExitCandidate=TransExitCandidate.container
-        elif TransExitCandidate.container is TargetBox.container and targetR in range(TransExitCandidate.container.row) and targetC in range(TransExitCandidate.container.col) and TransExitCandidate.container.board[targetR][targetC] is TargetBox:
+        if TransExitCandidate.container is TargetBox.container and targetR in range(TransExitCandidate.container.row) and targetC in range(TransExitCandidate.container.col) and TransExitCandidate.container.board[targetR][targetC] is TargetBox:
             break
-        else:
-            #not actually a transfer, declare failure
-            return 0
     #block location obtained
     targetBlock=None
     targetOffset=0
     targetScaling=1
     inList=[]
+    if TargetBox.flipped and direction in [1,3]:
+        direction=(direction+2)%4
     while not (isinstance(TargetBox,boxes) or isinstance(TargetBox,epsilon)):
         #its a bit empty for now, but nested pseudos will come in later
         if isinstance(TargetBox,clone):
             TargetBox=TargetBox.extension
         elif isinstance(TargetBox,infinity):
-            return 0 #infinity boxes can not be transferred into
+            return 0 #infinity boxes can not be transferred into        
     while not targetBlock in inList:
         inList.append(targetBlock)
         if direction%2==0:
@@ -1025,7 +1118,7 @@ def importBox(boxcode):
     if title[0]=='V':
         rootBox=voidbox(row,col,title)
     else:
-        rootBox=boxes(row,col,name=title)
+        rootBox=boxes(row=row,col=col,name=title)
         rootBox.color=color
     alterations=rest.split(":")
     for alt in alterations:
@@ -1121,16 +1214,17 @@ def importBoxRLE(boxcode):
     #specs parsing
     specslist=specs.split(";")
     name=specslist[0]
+    flipped='F' in specslist
     for specs in specslist[1:]:
         desclist=specs.split(",")
         if desclist[0]=='I':
-            box=infinity(None)
+            box=infinity(None,flipped=flipped)
             box.tier=int(desclist[2])
             box.name='I'+desclist[1]
             order=desclist[1]
             return box,[order]
         if desclist[0]=='C':
-            box=clone(None)
+            box=clone(None,flipped=flipped)
             box.name='C'+desclist[1]
             order=desclist[1]
             return box,[order]
@@ -1143,7 +1237,7 @@ def importBoxRLE(boxcode):
         r,g,b=map(int,specslist[2].split(","))
         color=(r,g,b)
     if 'V' in specslist:
-        box=voidbox(row,col,name)
+        box=voidbox(row=row,col=col,name=name,flipped=flipped)
     elif epsilonMode:
         row,col=map(int,specslist[1].split(","))
         box=epsilon(None,row,col)
@@ -1151,7 +1245,7 @@ def importBoxRLE(boxcode):
         order=desclist[1]
         orders.append(order)
     else:
-        box=boxes(row,col,name)
+        box=boxes(row=row,col=col,name=name,flipped=flipped)
         box.color=color
     #lookup parsing
     if lookupstr=="":
@@ -1272,14 +1366,7 @@ Intro=[['LR','LA'],['IntroGry','IntroBlu']]
 
 #Test Levels
    #phase 1 test levels
-def makegame1():
-    root=boxes(7,7)
-    root.place(1,1,patrick(0))
-    root.place(1,2,patrick(1))
-    root.place(2,4,pushable())
-    root.place(4,4,wall())
-    return game(root)
-   #phase 2 test levels
+
 ImportTest1='LR:3,3:LA,1,1|LA:3,3'
 ExitTest1='LR:5,5:LA,3,3|LA:3,3:p0,1,1'
 RecurseTest1='LR:5,5:p0,1,2:LR,2,2:B,3,3'
@@ -1290,6 +1377,9 @@ EatTest1='LB:3,3:#,0,0:#,0,1:#,0,2:B,1,0:#,1,1:P,1,2:#,2,0:#,2,1:#,2,2|LA:7,7:#,
    #Patrick's Parabox official level storage
 
 CloneTest1='SPEC:200,10,120:250,190,60|LA;7,7;120,210,40:0,#;1,_;2,LA;3,p0;4,CLA:0,8;1,5;0,2;1,1;2,1;1,1;3,1;1,1;0,2;1,5;0,2;4,5;0,2;1,5;0,8:B,1,2;P,1,1|CLA;C,LA'
+
+FlipTest1='SPEC:200,0,120:255,190,60|LA;7,7;140,120,210:0,_;1,LA;2,CLA;3,p0;4,#;5,LB:0,10;1,1;0,3;2,1;3,1;0,5;4,1;0,5;4,1;0,9;5,1;0,11:B,1,5;P,1,4|LB;5,5;220,100,70:0,#;1,_:0,6;1,4;0,1;1,4;0,1;1,4;0,5|CLA;C,LA;F'
+
 
 #from now on I am skipping levels and only covering what can cause issues with current code
 #maybe I will bother with the rest of the levels later but I want to do eat stuff now
@@ -1323,7 +1413,6 @@ Clone10db1='SPEC:190,40,80:70,140,250|LA;7,7;120,200,30:0,#;1,_;2,LA;3,p0;4,CLA;
 Clone10db2='SPEC:190,40,80:70,140,250|LA;7,7;120,200,30:0,#;1,_;2,LA;3,p0;4,CLA;5,LB:0,8;1,3;2,1;0,3;1,5;0,2;1,4;3,1;0,2;1,4;4,1;0,2;4,1;1,3;5,1;0,4;1,1;0,3|CLA;C,LA|LB;3,3;200,190,0:0,#;1,_:0,4;1,2;0,3:P,1,1'
 Clone12db1='SPEC:190,40,80:70,140,250|LA;9,9;120,200,30:0,#;1,_;2,p0;3,CLA;4,LB;5,LA:0,9;1,4;0,1;1,3;0,2;1,3;0,1;1,3;0,2;1,3;0,1;1,3;0,1;2,1;1,3;0,1;1,2;3,1;0,2;1,3;0,1;1,3;0,4;1,1;0,1;1,3;0,2;4,1;3,1;5,1;0,1;1,3;0,10|CLA;C,LA|LB;3,3;200,190,0:0,#;1,_:0,4;1,1;0,2;1,1;0,1:P,1,1'
 
-
-
+Flip3db1='SPEC:210,80,190:90,190,160|LA;7,7;120,110,250;F:0,#;1,_;2,LA;3,LC;4,LB:0,8;1,4;0,3;1,4;2,1;0,2;1,6;0,1;1,5;0,2;3,1;4,1;1,3;0,8:B,5,1;B,5,2|LB;5,5;90,190,160;F:0,#;1,_;2,p0:0,2;1,1;0,4;1,2;2,1;0,15|LC;5,5;170,70,100;F:0,#;1,_:0,5;1,2;0,18:P,1,1'
 
 

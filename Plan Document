@@ -115,6 +115,70 @@ so I guess I will just go by feels again
 except this time I order by section and round to fifths
 and also there will be repeats to avoid having to backtrack between sections
 
+Transfers:
+Ok so transfers are a lot worse than I thought
+Like they can transfer between boxes and boxes in boxes
+as far as I know, transfer happens when you can't push the other block when attempting an exit
+and the center of the exiting block is facing an avalible transfer spot in the target box
+note that in cases of unequal box sizes this can lead to 1-way entrances
+that seems simple so far but the problem is that transfers can also happen between boxes in boxes
+ughgh thats worrying
+
+ok idea
+get the position of the entering patrick in its box, then recursively go out boxes until both boxes have the same container
+then go down to target box to check for position
+
+Ok I think I got down the transfer. Tho I may need to tweak it to accomodate for exact evens as I know they are fucky
+
+hmmm
+
+maybe I can just get rid of enter?
+because now Im realizing that transfer is just a more generalized form of enter
+
+ok while on a walk I realized something bad
+if the transfer is between a self containing box and a box inside it, then the transfer from patrick into the box will believe that it is already on a common layer despite not being so
+so not only do they need to be the same layers, but that the relative position of the box to the patrick container needs to match the direction
+
+Ok fixed by having it halt only if the block facing the current container in the direction is the target box
+
+Hmm now back to the question of replacing enter with transfer
+An addition is that enter is recursive while transfer is not it uses loops. Is one better than the other?
+I wonder if a similar method can be used to make exit non-recursive as well
+nvm having it be recursion is better for simple enter and exit
+tho need to add stuff to deal with even box jank
+
+Implemented a more rigorous system to ensure complex box structures (pseudoboxes of pseudoboxes) are properly handled
+Detected a bug where some tiles become orphaned and have no container
+Turns out early push function calls were poorly designed
+and did not use the place function instead directly assigning the board a new block()
+with no container, rootrow, or rootcol
+that has since been fixed
+
+Flip:
+
+flipped is an attribute now given to boxes and pseudoboxes
+when entering/exiting from a flipped box, the parity of the block will flip
+Heirarchy of special modifiers: 
+Infinity>Epsilon>Clone>Flip>Playable>Posessible
+
+Flip has been mostly implemented
+Some bugs are present tho
+On flip 3, flipped boxes cant transfer properly which is bad
+Ok figured out the issue. Transfer had janky flip code and I reworked that.
+
+Now theres an issue with exit on flip 5. Exit flips boxes even if the exit is unsuccessful. Need to fix that.
+
+Alright fixing the bug uhhhhh
+Ok, so current code makes it so if the exiting box flips the block no matter what. So even in failure it flips
+The naive solution is to not flip it until the exit was successful
+but the problem is that the flip is needed to determine if the exit is successful in situations where it eats the outside block
+so new plan is to flip it as normal, but if the exit was unsuccessful, flip it back
+
+I created two new debug levels, debug 11 and debug 12
+debug 11 is the parity issue with enter fails, debug 12 is flip into eat.
+
+
+
 
 phase 1: sokoban(emulating all of intro without nested boxes)
 define the print function for a given box, the movement of a player, and general mechanics of pushing
@@ -167,6 +231,19 @@ need to figure out how to do number prompts
 ok plan
 always split between top and bottom. Top for display and data slots and stuff, bottom for palletes be it block or color
 
+phase 7: Transfer
+Figure out how to perform transfers between blocks
+need to exit every block, keep track of absolute position in relative to the largest exit block, and find the correspondence in the entry block
+can have transfers from blocks within blocks within blocks and so on
+due to size mismatch jank, can also have 1-way entrances
+
+phase 8: Flip 
+Implement flipped boxes, a new attribute to both boxes and pseudoboxes
+When entering/exiting from a flipped box, the parity of the block will flip
+however, as most blocks are normal tiles, this only have effect if the block is itself a box/pseudobox
+also need to watch out for the flip exit infinite self-push thing
+Oh and also need to figure out how to do this for import/export
+
 
 
 bug report:
@@ -186,3 +263,4 @@ For some reason if you try to push in the same direction as a block coming in, i
 Ingame intended outcome is that the eat attempt fails as you are blocking the way and a block cant push against a patrick
 
 ok Clone12 fixed as well. Put an exception for patricks blocking the way in push function
+
